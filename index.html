@@ -142,16 +142,39 @@ function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,8); }
 // ══════════════ APPEL API (vers Apps Script) ══════════════
 // Utilise fetch avec la methode POST. En cas d'echec (hors ligne), rejette la promesse.
 function apiCall(params) {
-  // Appel en GET avec parametres d'URL : evite le blocage CORS d'Apps Script.
-  // Apps Script suit une redirection vers googleusercontent.com qui renvoie le JSON.
-  var url = API_URL + "?";
-  var parts = [];
-  Object.keys(params).forEach(function(k){
-    parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(params[k]));
+  // JSONP : contourne totalement le blocage CORS de Safari/iPhone.
+  // On charge la reponse comme un <script> ; le serveur renvoie callback(JSON).
+  return new Promise(function(resolve, reject){
+    var cbName = "sencsu_cb_" + Date.now() + "_" + Math.floor(Math.random()*100000);
+    var timeout = setTimeout(function(){
+      cleanup();
+      reject(new Error("Délai dépassé (serveur injoignable)"));
+    }, 30000);
+
+    function cleanup(){
+      clearTimeout(timeout);
+      try { delete window[cbName]; } catch(e){ window[cbName] = undefined; }
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    var url = API_URL + "?callback=" + encodeURIComponent(cbName);
+    Object.keys(params).forEach(function(k){
+      url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    });
+
+    var script = document.createElement("script");
+    script.src = url;
+    script.onerror = function(){
+      cleanup();
+      reject(new Error("Échec de chargement (réseau ou URL incorrecte)"));
+    };
+    document.head.appendChild(script);
   });
-  url += parts.join("&");
-  return fetch(url, { method: "GET", redirect: "follow" })
-    .then(function(r){ return r.json(); });
 }
 
 function updateSyncUI(){
