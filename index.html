@@ -142,6 +142,8 @@ function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,8); }
 // ══════════════ APPEL API (vers Apps Script) ══════════════
 // Utilise fetch avec la methode POST. En cas d'echec (hors ligne), rejette la promesse.
 function apiCall(params) {
+  // Appel en GET avec parametres d'URL : evite le blocage CORS d'Apps Script.
+  // Apps Script suit une redirection vers googleusercontent.com qui renvoie le JSON.
   var url = API_URL + "?";
   var parts = [];
   Object.keys(params).forEach(function(k){
@@ -175,14 +177,16 @@ function doLogin(){
     })
     .catch(function(err){
       $("btnLogin").disabled=false;
-      // Hors ligne : tenter la reconnexion avec le cache
+      // Tenter la reconnexion avec le cache si dispo
       var boot=null; try{ boot=JSON.parse(localStorage.getItem(LS_BOOT)||"null"); }catch(e){}
       var savedAuth=null; try{ savedAuth=JSON.parse(localStorage.getItem(LS_AUTH)||"null"); }catch(e){}
       if(boot && savedAuth && savedAuth.email.toLowerCase()===email.toLowerCase() && savedAuth.pin===pin){
         APP.auth=savedAuth; applyBootstrap(boot);
         toast("📴 Connecté hors ligne (données en cache)");
       } else {
-        $("loginErr").textContent="📴 Pas de connexion. Première connexion impossible hors ligne.";
+        // Afficher la VRAIE erreur pour diagnostic
+        var msg = (err && err.message) ? err.message : String(err);
+        $("loginErr").textContent = "Erreur : " + msg;
       }
     });
 }
