@@ -104,7 +104,8 @@
     <button class="btn small" onclick="trySync(true)">🔄 Sync</button>
   </div>
   <div class="grid" id="regimeGrid"></div>
-  <button class="btn secondary" onclick="doLogout()" style="margin-top:14px">Se déconnecter</button>
+  <button class="btn secondary" onclick="showPDFScreen()" style="margin-top:14px">📄 Télécharger ma liste (PDF)</button>
+  <button class="btn secondary" onclick="doLogout()" style="margin-top:10px">Se déconnecter</button>
 </div>
 
 <!-- FORMULAIRE -->
@@ -121,12 +122,34 @@
   </div>
 </div>
 
+<!-- TELECHARGEMENT PDF -->
+<div class="screen" id="screenPDF">
+  <div class="form-head">
+    <button class="back" onclick="showScreen('screenHome')">←</button>
+    <div class="form-title">📄 Télécharger ma liste</div>
+  </div>
+  <div class="form-box">
+    <label>Régime</label>
+    <select id="pdfRegime" onchange="loadMois()"></select>
+    <label>Mois</label>
+    <select id="pdfMois"><option value="">— choisir un régime d'abord —</option></select>
+    <button class="btn" id="btnGenPDF" onclick="genererPDF()">📄 Générer le PDF</button>
+    <div class="err" id="pdfErr"></div>
+    <div id="pdfResult" style="margin-top:16px;text-align:center;display:none">
+      <p style="font-size:13px;color:var(--green)">✅ Le téléchargement a démarré</p>
+    </div>
+    <p style="font-size:11px;color:var(--text2);margin-top:12px">
+      ⚠️ La génération du PDF nécessite une connexion internet.
+    </p>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 // ══════════════ CONFIGURATION ══════════════
 // ⚠️ REMPLACER par l'URL de VOTRE Web App Apps Script (celle qui finit par /exec)
-var API_URL = "https://script.google.com/macros/s/AKfycbzeWb2rh4RY-sAgQOkLXf95msAJHBdXq68HjieZgZyKS4xDp0KuD16uHiiX8hyWpbXXWg/exec";
+var API_URL = "___URL_WEBAPP_EXEC___";
 
 var APP = { auth:null, user:null, postes:[], regimes:{}, referentiels:{services:[],prestations:[],prix:{}}, currentRegime:null };
 var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
@@ -347,20 +370,102 @@ function trySync(manual){
   if(!navigator.onLine){ if(manual) toast("📴 Pas de réseau — réessayez plus tard"); return; }
   if(!APP.auth) return;
   syncing=true; if(manual) toast("🔄 Synchronisation...");
-  apiCall({ action:"submit", email:APP.auth.email, pin:APP.auth.pin, entries:JSON.stringify(q) })
+  // Envoyer par petits lots (JSONP passe par l'URL, limitee en longueur)
+  syncLot(q.slice(), 0, manual);
+}
+
+function syncLot(tous, dejaSauves, manual){
+  var restants=getQueue();
+  if(restants.length===0){
+    syncing=false; updateSyncUI();
+    if(dejaSauves>0) toast("✅ "+dejaSauves+" dossier(s) synchronisé(s)");
+    else if(manual) toast("✅ Terminé");
+    return;
+  }
+  var LOT=5;  // 5 dossiers par appel (evite URL trop longue)
+  var lot=restants.slice(0, LOT);
+  apiCall({ action:"submit", email:APP.auth.email, pin:APP.auth.pin, entries:JSON.stringify(lot) })
     .then(function(res){
-      syncing=false;
-      if(res.error){ if(manual) toast("❌ "+res.error); return; }
+      if(res.error){ syncing=false; if(manual) toast("❌ "+res.error); return; }
       var savedIds=res.saved||[];
       var remaining=getQueue().filter(function(e){ return savedIds.indexOf(e.id)<0; });
       setQueue(remaining); updateSyncUI();
-      if(savedIds.length>0) toast("✅ "+savedIds.length+" dossier(s) synchronisé(s)");
+      if(savedIds.length>0){
+        // Continuer avec le lot suivant
+        syncLot(tous, dejaSauves + savedIds.length, manual);
+      } else {
+        syncing=false;
+        if(manual) toast("⚠️ Rien n'a pu être synchronisé");
+      }
     })
-    .catch(function(){ syncing=false; if(manual) toast("❌ Erreur réseau — données conservées sur le téléphone",3500); });
+    .catch(function(){ syncing=false; if(manual) toast("❌ Erreur réseau — données conservées",3500); });
 }
 
 window.addEventListener("online", function(){ $("offlineBanner").style.display="none"; trySync(false); });
 window.addEventListener("offline", function(){ $("offlineBanner").style.display="block"; });
+
+// ══════════════ TELECHARGEMENT PDF ══════════════
+function showPDFScreen(){
+  var sel=$("pdfRegime");
+  sel.innerHTML='<option value="">— choisir —</option>';
+  Object.keys(APP.regimes).forEach(function(k){
+    var o=document.createElement("option"); o.value=k; o.textContent=APP.regimes[k].titre; sel.appendChild(o);
+  });
+  $("pdfMois").innerHTML='<option value="">— choisir un régime d\'abord —</option>';
+  $("pdfResult").style.display="none"; $("pdfErr").textContent="";
+  showScreen("screenPDF");
+}
+
+function loadMois(){
+  var regime=$("pdfRegime").value, selMois=$("pdfMois");
+  $("pdfResult").style.display="none"; $("pdfErr").textContent="";
+  if(!regime){ selMois.innerHTML='<option value="">— choisir un régime d\'abord —</option>'; return; }
+  if(!navigator.onLine){ $("pdfErr").textContent="📴 La génération PDF nécessite une connexion internet."; return; }
+  selMois.innerHTML='<option value="">Chargement...</option>';
+  apiCall({ action:"mois", email:APP.auth.email, pin:APP.auth.pin, regime:regime })
+    .then(function(res){
+      if(res.error){ $("pdfErr").textContent=res.error; return; }
+      if(!res.mois || res.mois.length===0){ selMois.innerHTML='<option value="">Aucune donnée</option>'; return; }
+      selMois.innerHTML='<option value="">— choisir le mois —</option>';
+      res.mois.forEach(function(m){ var o=document.createElement("option"); o.value=m.key; o.textContent=m.label; selMois.appendChild(o); });
+    })
+    .catch(function(e){ $("pdfErr").textContent="Erreur : "+(e&&e.message?e.message:e); });
+}
+
+function genererPDF(){
+  var regime=$("pdfRegime").value, mois=$("pdfMois").value;
+  if(!regime){ $("pdfErr").textContent="Choisissez un régime."; return; }
+  if(!mois){ $("pdfErr").textContent="Choisissez un mois."; return; }
+  if(!navigator.onLine){ $("pdfErr").textContent="📴 Connexion internet requise pour générer le PDF."; return; }
+  $("pdfErr").textContent=""; $("pdfResult").style.display="none";
+  $("btnGenPDF").disabled=true; $("btnGenPDF").textContent="⏳ Génération en cours...";
+
+  apiCall({ action:"pdf", email:APP.auth.email, pin:APP.auth.pin, regime:regime, moisKey:mois, format:"pdf" })
+    .then(function(res){
+      $("btnGenPDF").disabled=false; $("btnGenPDF").textContent="📄 Générer le PDF";
+      if(res.error){ $("pdfErr").textContent=res.error; return; }
+      if(res.base64){
+        telechargerBase64(res.base64, res.filename||"liste.pdf");
+        $("pdfResult").style.display="block";
+        toast("✅ PDF téléchargé !");
+      } else { $("pdfErr").textContent="Réponse inattendue du serveur."; }
+    })
+    .catch(function(e){
+      $("btnGenPDF").disabled=false; $("btnGenPDF").textContent="📄 Générer le PDF";
+      $("pdfErr").textContent="Erreur : "+(e&&e.message?e.message:e);
+    });
+}
+
+function telechargerBase64(base64, filename){
+  var binary=atob(base64), bytes=new Uint8Array(binary.length);
+  for(var i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  var blob=new Blob([bytes], {type:"application/pdf"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+}
 
 // ══════════════ INSTALLATION PWA ══════════════
 window.addEventListener("beforeinstallprompt", function(e){
