@@ -64,6 +64,15 @@
   .install-banner { background:var(--green-light); border:1px solid var(--green); border-radius:10px;
     padding:12px; margin-top:12px; font-size:13px; display:none; }
   .install-banner button { margin-top:8px; }
+.list-card{background:#fff;border:1px solid #e3ece7;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.pill{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700}
+#loader{position:fixed;inset:0;z-index:9999;background:rgba(15,42,30,.55);display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+#loader.show{display:flex}
+.loader-box{background:#fff;border-radius:16px;padding:26px 30px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 10px 40px rgba(0,0,0,.25);max-width:78%;text-align:center}
+.loader-ring{width:46px;height:46px;border-radius:50%;border:4px solid #e3efe8;border-top-color:#1a7a4a;animation:ldspin .8s linear infinite}
+@keyframes ldspin{to{transform:rotate(360deg)}}
+.loader-msg{font-size:14px;color:#1a2b22;font-weight:600}
+.loader-sub{font-size:12px;color:#5b6b63;margin-top:-6px}
 </style>
 </head>
 <body>
@@ -103,9 +112,112 @@
     <span id="syncMsg">✅ Tout est synchronisé</span>
     <button class="btn small" onclick="trySync(true)">🔄 Sync</button>
   </div>
-  <div class="grid" id="regimeGrid"></div>
-  <button class="btn secondary" onclick="showPDFScreen()" style="margin-top:14px">📄 Télécharger ma liste (PDF)</button>
+
+  <!-- Choix du mode -->
+  <div id="icpModeChoice">
+    <p style="font-size:14px;color:var(--text2);margin:8px 0 12px;text-align:center">Que souhaitez-vous faire ?</p>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="card" style="border-top-color:#1a7a4a" onclick="choisirMode('csu')">
+        <div class="ic">🏥</div><div class="t">Bénéficiaire CSU</div>
+        <div style="font-size:11px;color:#667;margin-top:4px">Saisie par régime</div>
+      </div>
+      <div class="card" style="border-top-color:#2471a3" onclick="choisirMode('horscsu')">
+        <div class="ic">🧾</div><div class="t">Patient Hors CSU</div>
+        <div style="font-size:11px;color:#667;margin-top:4px">Facture individuelle</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode CSU -->
+  <div id="icpModeCSU" style="display:none">
+    <div class="form-head"><button class="back" onclick="retourModeChoice()">←</button>
+      <div class="form-title">🏥 Bénéficiaire CSU</div></div>
+    <div class="grid" id="regimeGrid"></div>
+    <button class="btn secondary" onclick="showPDFScreen()" style="margin-top:14px">📄 Télécharger ma liste (PDF)</button>
+  </div>
+
+  <!-- Mode Hors CSU -->
+  <div id="icpModeHC" style="display:none">
+    <div class="form-head"><button class="back" onclick="retourModeChoice()">←</button>
+      <div class="form-title">🧾 Patient Hors CSU</div></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="card" style="border-top-color:#2471a3" onclick="showHCFacture()">
+        <div class="ic">🧾</div><div class="t">Nouvelle facture</div></div>
+      <div class="card" style="border-top-color:#8e44ad" onclick="showHCRef()">
+        <div class="ic">⚙️</div><div class="t">Mes services & prix</div></div>
+      <div class="card" style="border-top-color:#1a7a4a" onclick="showHCSituation()">
+        <div class="ic">📊</div><div class="t">Ma situation</div></div>
+    </div>
+  </div>
+
   <button class="btn secondary" onclick="doLogout()" style="margin-top:10px">Se déconnecter</button>
+</div>
+
+<!-- HORS CSU : REFERENTIELS -->
+<div class="screen" id="screenHCRef">
+  <div class="form-head"><button class="back" onclick="retourHCAccueil()">←</button>
+    <div class="form-title">⚙️ Mes services & prix</div></div>
+  <div class="form-box">
+    <label class="req">Service</label>
+    <input list="hcRefDlService" id="hcRefService" placeholder="Ex : Pédiatrie, Dépositaire...">
+    <datalist id="hcRefDlService"></datalist>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:400">
+      <input type="checkbox" id="hcRefDepot" style="width:auto"> Ce service est un <b>dépositaire</b> (médicaments)</label>
+    <label class="req" style="margin-top:10px">Prestation / Médicament</label>
+    <input type="text" id="hcRefPresta" placeholder="Ex : Consultation, ou nom du médicament">
+    <label>Prix (FCFA)</label>
+    <input type="number" id="hcRefPrix" min="0" inputmode="numeric" placeholder="Ex : 1000">
+    <button class="btn" onclick="ajouterRef()">➕ Ajouter</button>
+    <div class="err" id="hcRefErr"></div>
+    <div id="hcRefListe" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- HORS CSU : NOUVELLE FACTURE -->
+<div class="screen" id="screenHCFacture">
+  <div class="form-head"><button class="back" onclick="retourHCAccueil()">←</button>
+    <div class="form-title">🧾 Nouvelle facture</div></div>
+  <div class="form-box">
+    <label class="req">Nom du patient</label>
+    <input type="text" id="hcPatNom" placeholder="Prénom et nom">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label>Téléphone</label>
+        <input type="tel" id="hcPatTel" placeholder="77 000 00 00"></div>
+      <div style="flex:1"><label>Tél. accompagnant</label>
+        <input type="tel" id="hcPatAcc" placeholder="Optionnel"></div>
+    </div>
+    <div style="border-top:1px solid #eee;margin:16px 0 10px"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">Ajouter un acte</div>
+    <label class="req">Service</label>
+    <select id="hcActeService" onchange="onServiceChange()"><option value="">— choisir un service —</option></select>
+    <label class="req">Prestation</label>
+    <select id="hcActePresta"><option value="">— choisir d'abord un service —</option></select>
+    <div id="hcQteWrap" style="display:none"><label>Quantité</label>
+      <input type="number" id="hcActeQte" min="1" value="1" inputmode="numeric"></div>
+    <button class="btn secondary" onclick="ajouterActe()" style="margin-top:10px">➕ Ajouter cet acte</button>
+    <div class="err" id="hcActeErr"></div>
+    <div style="border-top:1px solid #eee;margin:16px 0 8px"></div>
+    <div id="hcLignes"></div>
+    <div id="hcTotal" style="text-align:right;font-size:16px;font-weight:700;color:var(--green);margin-top:8px"></div>
+    <button class="btn" onclick="genererFactureHC()" style="margin-top:12px">🧾 Générer la facture (PDF)</button>
+    <div class="err" id="hcFactErr"></div>
+  </div>
+</div>
+
+<!-- HORS CSU : MA SITUATION -->
+<div class="screen" id="screenHCSituation">
+  <div class="form-head"><button class="back" onclick="retourHCAccueil()">←</button>
+    <div class="form-title">📊 Ma situation</div></div>
+  <div class="form-box">
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn small" id="hcPerJour" onclick="chargerSituation('jour')">Aujourd'hui</button>
+      <button class="btn small secondary" id="hcPerMois" onclick="chargerSituation('mois')">Ce mois</button>
+      <button class="btn small secondary" id="hcPerTout" onclick="chargerSituation('tout')">Tout</button>
+    </div>
+    <div class="grid" id="hcSitKPI" style="grid-template-columns:1fr 1fr 1fr;gap:8px"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--green);margin:16px 0 8px">Historique des factures</div>
+    <div id="hcSitListe"></div>
+  </div>
 </div>
 
 <!-- FORMULAIRE -->
@@ -145,6 +257,9 @@
 </div>
 
 <div id="toast"></div>
+<div id="loader"><div class="loader-box"><div class="loader-ring"></div>
+  <div class="loader-msg" id="loaderMsg">Chargement...</div>
+  <div class="loader-sub" id="loaderSub"></div></div></div>
 
 <script>
 // ══════════════ CONFIGURATION ══════════════
@@ -158,6 +273,207 @@ var deferredPrompt = null;
 function $(id){ return document.getElementById(id); }
 function showScreen(id){ document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");}); $(id).classList.add("active"); window.scrollTo(0,0); }
 function toast(m,ms){ var t=$("toast"); t.textContent=m; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(function(){t.style.display="none";}, ms||2600); }
+function showLoader(msg,sub){ $("loaderMsg").textContent=msg||"Traitement..."; $("loaderSub").textContent=sub||""; $("loader").classList.add("show"); }
+function hideLoader(){ $("loader").classList.remove("show"); }
+
+// ══════════════ MODE CSU / HORS CSU ══════════════
+function choisirMode(mode){
+  $("icpModeChoice").style.display="none";
+  $("icpModeCSU").style.display = (mode==="csu")?"block":"none";
+  $("icpModeHC").style.display = (mode==="csu")?"none":"block";
+}
+function retourModeChoice(){
+  $("icpModeChoice").style.display="block";
+  $("icpModeCSU").style.display="none"; $("icpModeHC").style.display="none";
+}
+function retourHCAccueil(){
+  showScreen("screenHome");
+  $("icpModeChoice").style.display="none";
+  $("icpModeCSU").style.display="none"; $("icpModeHC").style.display="block";
+}
+function fmtFCFA(n){ n=Math.round(parseFloat(n)||0); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" FCFA"; }
+
+// ══════════════ HORS CSU : REFERENTIELS ══════════════
+function showHCRef(){
+  $("hcRefErr").textContent=""; $("hcRefService").value=""; $("hcRefPresta").value="";
+  $("hcRefPrix").value=""; $("hcRefDepot").checked=false;
+  $("hcRefListe").innerHTML='<p style="font-size:12px;color:#667">Chargement...</p>';
+  showScreen("screenHCRef"); chargerRef();
+}
+function chargerRef(){
+  if(!navigator.onLine){ $("hcRefListe").innerHTML='<p style="font-size:12px;color:#e67e22">📴 Connexion requise.</p>'; return; }
+  apiCall({ action:"hc_ref", email:APP.auth.email, pin:APP.auth.pin }).then(function(r){
+    if(r.error){ $("hcRefListe").innerHTML='<p style="color:#c0392b;font-size:12px">'+r.error+'</p>'; return; }
+    APP._hcServices=r.services||[]; renderRefListe(); remplirServiceDatalist();
+  }).catch(function(e){ $("hcRefListe").innerHTML='<p style="color:#c0392b;font-size:12px">Erreur : '+e.message+'</p>'; });
+}
+function remplirServiceDatalist(){
+  var dl=$("hcRefDlService"); if(!dl) return; dl.innerHTML="";
+  (APP._hcServices||[]).forEach(function(s){ var o=document.createElement("option"); o.value=s.nom; dl.appendChild(o); });
+}
+function renderRefListe(){
+  var services=APP._hcServices||[];
+  if(services.length===0){ $("hcRefListe").innerHTML='<p style="font-size:12px;color:#999">Aucun service paramétré.</p>'; return; }
+  var h="";
+  services.forEach(function(s){
+    h+='<div style="margin-top:12px"><div style="font-size:13px;font-weight:700;color:var(--green)">🏥 '+s.nom+
+       (s.depositaire?' <span class="pill" style="background:#eaf2f8;color:#2471a3">Dépositaire</span>':'')+'</div>';
+    (s.prestations||[]).forEach(function(p){
+      h+='<div class="list-card" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-top:4px">'+
+         '<span style="font-size:13px">'+p.nom+' — <b>'+fmtFCFA(p.prix)+'</b></span>'+
+         '<button class="btn small secondary" onclick="supprimerRef('+p.ligne+')">🗑️</button></div>';
+    });
+    h+='</div>';
+  });
+  $("hcRefListe").innerHTML=h;
+}
+function ajouterRef(){
+  var service=$("hcRefService").value.trim(), presta=$("hcRefPresta").value.trim();
+  var prix=$("hcRefPrix").value.trim(), depot=$("hcRefDepot").checked;
+  if(!service){ $("hcRefErr").textContent="Entrez le service."; return; }
+  if(!presta){ $("hcRefErr").textContent="Entrez la prestation."; return; }
+  $("hcRefErr").textContent=""; showLoader("Enregistrement...", service);
+  apiCall({ action:"hc_ajouter_ref", email:APP.auth.email, pin:APP.auth.pin,
+            service:service, prestation:presta, prix:prix, depositaire:depot?"true":"false" }).then(function(r){
+    hideLoader();
+    if(r.error){ $("hcRefErr").textContent=r.error; return; }
+    $("hcRefPresta").value=""; $("hcRefPrix").value=""; toast("✅ "+r.message); chargerRef();
+  }).catch(function(e){ hideLoader(); $("hcRefErr").textContent="Erreur : "+e.message; });
+}
+function supprimerRef(ligne){
+  if(!confirm("Supprimer cette prestation ?")) return;
+  showLoader("Suppression...");
+  apiCall({ action:"hc_supprimer_ref", email:APP.auth.email, pin:APP.auth.pin, ligne:ligne }).then(function(r){
+    hideLoader();
+    if(r.error){ toast("❌ "+r.error); return; }
+    toast("✅ Supprimé"); chargerRef();
+  }).catch(function(e){ hideLoader(); toast("❌ "+e.message); });
+}
+
+// ══════════════ HORS CSU : FACTURATION ══════════════
+function showHCFacture(){
+  $("hcPatNom").value=""; $("hcPatTel").value=""; $("hcPatAcc").value=""; $("hcActeQte").value="1";
+  $("hcActeErr").textContent=""; $("hcFactErr").textContent="";
+  APP._hcPanier=[]; renderPanier(); showScreen("screenHCFacture");
+  if(!APP._hcServices){
+    apiCall({ action:"hc_ref", email:APP.auth.email, pin:APP.auth.pin }).then(function(r){
+      if(!r.error) APP._hcServices=r.services||[]; remplirServiceSelect();
+    }).catch(function(){ remplirServiceSelect(); });
+  } else { remplirServiceSelect(); }
+}
+function remplirServiceSelect(){
+  var sel=$("hcActeService"); sel.innerHTML='<option value="">— choisir un service —</option>';
+  (APP._hcServices||[]).forEach(function(s){
+    var o=document.createElement("option"); o.value=s.nom; o.textContent=s.nom+(s.depositaire?" (dépositaire)":""); sel.appendChild(o);
+  });
+  $("hcActePresta").innerHTML='<option value="">— choisir d\'abord un service —</option>';
+  $("hcQteWrap").style.display="none";
+}
+function onServiceChange(){
+  var nom=$("hcActeService").value;
+  var service=(APP._hcServices||[]).filter(function(s){return s.nom===nom;})[0];
+  var selP=$("hcActePresta"); selP.innerHTML='<option value="">— choisir —</option>';
+  if(!service){ $("hcQteWrap").style.display="none"; return; }
+  service.prestations.forEach(function(p){
+    var o=document.createElement("option"); o.value=p.nom; o.textContent=p.nom+" — "+fmtFCFA(p.prix);
+    o.setAttribute("data-prix",p.prix); selP.appendChild(o);
+  });
+  $("hcQteWrap").style.display=service.depositaire?"block":"none"; $("hcActeQte").value="1";
+}
+function ajouterActe(){
+  var nomService=$("hcActeService").value;
+  var service=(APP._hcServices||[]).filter(function(s){return s.nom===nomService;})[0];
+  var selP=$("hcActePresta"), presta=selP.value;
+  if(!nomService){ $("hcActeErr").textContent="Choisissez le service."; return; }
+  if(!presta){ $("hcActeErr").textContent="Choisissez la prestation."; return; }
+  $("hcActeErr").textContent="";
+  var opt=selP.options[selP.selectedIndex], pu=parseFloat(opt.getAttribute("data-prix"))||0;
+  var estDepot=service&&service.depositaire, qte=estDepot?(parseFloat($("hcActeQte").value)||1):1;
+  if(!APP._hcPanier) APP._hcPanier=[];
+  APP._hcPanier.push({ service:nomService, type:estDepot?"Médicament":"Prestation", designation:presta, qte:qte, pu:pu });
+  selP.value=""; $("hcActeQte").value="1"; renderPanier(); toast("✅ Ajouté");
+}
+function retirerLigne(i){ APP._hcPanier.splice(i,1); renderPanier(); }
+function renderPanier(){
+  var panier=APP._hcPanier||[];
+  if(panier.length===0){ $("hcLignes").innerHTML='<p style="font-size:12px;color:#999;text-align:center">Aucun acte ajouté.</p>'; $("hcTotal").textContent=""; return; }
+  var parService={};
+  panier.forEach(function(l,idx){ var s=l.service||"(sans service)"; if(!parService[s]) parService[s]=[]; parService[s].push({l:l,idx:idx}); });
+  var total=0,h="";
+  Object.keys(parService).forEach(function(s){
+    h+='<div style="font-size:12px;font-weight:700;color:#2471a3;margin:8px 0 4px">🏥 '+s+'</div>';
+    parService[s].forEach(function(o){
+      var l=o.l, mt=l.qte*l.pu; total+=mt; var ic=l.type==="Médicament"?"💊":"🩺";
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid #eee">'+
+         '<span>'+ic+' '+l.designation+(l.qte>1?' <span style="color:#999">× '+l.qte+'</span>':'')+'</span>'+
+         '<span style="display:flex;align-items:center;gap:6px"><b>'+fmtFCFA(mt)+'</b>'+
+         '<button class="btn small secondary" onclick="retirerLigne('+o.idx+')">✕</button></span></div>';
+    });
+  });
+  $("hcLignes").innerHTML=h; $("hcTotal").textContent="TOTAL : "+fmtFCFA(total);
+}
+function genererFactureHC(){
+  var nom=$("hcPatNom").value.trim(), panier=APP._hcPanier||[];
+  if(!nom){ $("hcFactErr").textContent="Le nom du patient est obligatoire."; return; }
+  if(panier.length===0){ $("hcFactErr").textContent="Ajoutez au moins un acte."; return; }
+  if(!navigator.onLine){ $("hcFactErr").textContent="📴 Connexion requise."; return; }
+  $("hcFactErr").textContent=""; showLoader("Génération de la facture...", "Création du PDF");
+  var payload=JSON.stringify({ patient:{ nom:nom, tel:$("hcPatTel").value.trim(), telAccomp:$("hcPatAcc").value.trim() }, lignes:panier });
+  apiCall({ action:"hc_facturer", email:APP.auth.email, pin:APP.auth.pin, payload:payload }).then(function(r){
+    hideLoader();
+    if(r.error){ $("hcFactErr").textContent=r.error; return; }
+    if(r.base64) telechargerBase64(r.base64, r.filename);
+    toast("✅ "+r.message);
+    APP._hcPanier=[]; $("hcPatNom").value=""; $("hcPatTel").value=""; $("hcPatAcc").value="";
+    remplirServiceSelect(); renderPanier();
+  }).catch(function(e){ hideLoader(); $("hcFactErr").textContent="Erreur : "+e.message; });
+}
+
+// ══════════════ HORS CSU : MA SITUATION ══════════════
+function showHCSituation(){
+  $("hcSitKPI").innerHTML=""; $("hcSitListe").innerHTML='<p style="font-size:12px;color:#667">Chargement...</p>';
+  showScreen("screenHCSituation"); chargerSituation("jour");
+}
+function chargerSituation(periode){
+  ["Jour","Mois","Tout"].forEach(function(p){ var b=$("hcPer"+p); if(b) b.className="btn small secondary"; });
+  var actif=periode==="jour"?"Jour":(periode==="mois"?"Mois":"Tout");
+  if($("hcPer"+actif)) $("hcPer"+actif).className="btn small";
+  if(!navigator.onLine){ $("hcSitListe").innerHTML='<p style="font-size:12px;color:#e67e22">📴 Connexion requise.</p>'; return; }
+  $("hcSitListe").innerHTML='<p style="font-size:12px;color:#667">Chargement...</p>';
+  apiCall({ action:"hc_situation", email:APP.auth.email, pin:APP.auth.pin, periode:periode }).then(function(r){
+    if(r.error){ $("hcSitListe").innerHTML='<p style="color:#c0392b;font-size:12px">'+r.error+'</p>'; return; }
+    renderSituation(r);
+  }).catch(function(e){ $("hcSitListe").innerHTML='<p style="color:#c0392b;font-size:12px">Erreur : '+e.message+'</p>'; });
+}
+function renderSituation(r){
+  var t=r.totaux||{factures:0,patients:0,montant:0};
+  $("hcSitKPI").innerHTML=
+    '<div class="card" style="border-top-color:#2471a3;padding:12px"><div class="t" style="font-size:22px">'+t.factures+'</div><div style="font-size:10px;color:#667">Factures</div></div>'+
+    '<div class="card" style="border-top-color:#1a7a4a;padding:12px"><div class="t" style="font-size:22px">'+t.patients+'</div><div style="font-size:10px;color:#667">Patients</div></div>'+
+    '<div class="card" style="border-top-color:#8e44ad;padding:12px"><div class="t" style="font-size:16px">'+fmtFCFA(t.montant)+'</div><div style="font-size:10px;color:#667">Encaissé</div></div>';
+  var factures=r.factures||[];
+  if(factures.length===0){ $("hcSitListe").innerHTML='<p style="font-size:12px;color:#999;text-align:center;padding:12px">Aucune facture sur cette période.</p>'; return; }
+  var h="";
+  factures.forEach(function(f){
+    h+='<div class="list-card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;align-items:start">'+
+       '<div><div style="font-weight:700;font-size:13px">'+f.patient+'</div>'+
+       '<div style="font-size:11px;color:#667">'+f.date+' · '+f.nbActes+' acte(s)'+(f.tel?' · '+f.tel:'')+'</div>'+
+       '<div style="font-size:10px;color:#999">'+f.num+'</div></div>'+
+       '<div style="text-align:right"><div style="font-weight:700;color:var(--green);font-size:13px">'+fmtFCFA(f.montant)+'</div>'+
+       '<button class="btn small secondary" style="margin-top:4px" onclick="reimprimer(\''+f.num+'\')">📄 PDF</button></div>'+
+       '</div></div>';
+  });
+  $("hcSitListe").innerHTML=h;
+}
+function reimprimer(num){
+  if(!navigator.onLine){ toast("📴 Connexion requise"); return; }
+  showLoader("Génération du PDF...", num);
+  apiCall({ action:"hc_reimprimer", email:APP.auth.email, pin:APP.auth.pin, numFacture:num }).then(function(r){
+    hideLoader();
+    if(r.error){ toast("❌ "+r.error); return; }
+    if(r.base64){ telechargerBase64(r.base64, r.filename); toast("✅ PDF téléchargé"); }
+  }).catch(function(e){ hideLoader(); toast("❌ "+e.message); });
+}
 function getQueue(){ try{ return JSON.parse(localStorage.getItem(LS_QUEUE)||"[]"); }catch(e){ return []; } }
 function setQueue(q){ localStorage.setItem(LS_QUEUE, JSON.stringify(q)); }
 function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,8); }
@@ -242,7 +558,7 @@ function applyBootstrap(res){
   APP.referentiels=res.referentiels||{services:[],prestations:[],prix:{}};
   $("topbar").style.display="flex";
   $("userInfo").textContent=APP.user.email+" — "+APP.user.role+(APP.user.poste?" ("+APP.user.poste+")":"");
-  buildHomeGrid(); updateSyncUI(); showScreen("screenHome"); trySync(false);
+  buildHomeGrid(); updateSyncUI(); showScreen("screenHome"); retourModeChoice(); trySync(false);
 }
 
 function doLogout(){
