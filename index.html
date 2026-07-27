@@ -158,6 +158,11 @@
   <div class="form-head"><button class="back" onclick="retourHCAccueil()">←</button>
     <div class="form-title">⚙️ Mes services & prix</div></div>
   <div class="form-box">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn secondary small" onclick="telechargerModeleHC()">⬇️ Modèle</button>
+      <button class="btn secondary small" onclick="document.getElementById('hcRefFile').click()">📥 Importer</button>
+      <input type="file" id="hcRefFile" accept=".xlsx,.csv" style="display:none" onchange="importerRefHC()">
+    </div>
     <label class="req">Service</label>
     <input list="hcRefDlService" id="hcRefService" placeholder="Ex : Pédiatrie, Dépositaire...">
     <datalist id="hcRefDlService"></datalist>
@@ -349,6 +354,30 @@ function supprimerRef(ligne){
     toast("✅ Supprimé"); chargerRef();
   }).catch(function(e){ hideLoader(); toast("❌ "+e.message); });
 }
+function telechargerModeleHC(){
+  showLoader("Préparation du modèle...");
+  apiCall({ action:"hc_modele", email:APP.auth.email, pin:APP.auth.pin }).then(function(r){
+    hideLoader();
+    if(r.error){ toast("❌ "+r.error); return; }
+    window.open(r.downloadUrl, "_blank"); toast("✅ Modèle téléchargé");
+  }).catch(function(e){ hideLoader(); toast("❌ "+e.message); });
+}
+function importerRefHC(){
+  var f=$("hcRefFile").files[0]; if(!f) return;
+  showLoader("Importation en cours...", "Lecture du fichier");
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var b64=ev.target.result.split(",")[1];
+    // POST (gros payload : le fichier ne tient pas dans une URL JSONP)
+    apiCallPost({ action:"hc_importer", email:APP.auth.email, pin:APP.auth.pin, base64:b64, filename:f.name }).then(function(r){
+      hideLoader(); $("hcRefFile").value="";
+      if(r.error){ toast("❌ "+r.error); return; }
+      toast("✅ "+r.message); chargerRef();
+    }).catch(function(e){ hideLoader(); $("hcRefFile").value=""; toast("❌ "+e.message); });
+  };
+  reader.onerror=function(){ hideLoader(); toast("❌ Lecture impossible"); };
+  reader.readAsDataURL(f);
+}
 
 // ══════════════ HORS CSU : FACTURATION ══════════════
 function showHCFacture(){
@@ -514,6 +543,17 @@ function apiCall(params) {
     };
     document.head.appendChild(script);
   });
+}
+
+// Appel POST pour les GROS payloads (fichiers Excel base64) qui ne tiennent pas dans une URL.
+// Utilise text/plain pour eviter le preflight CORS ; Apps Script lit e.postData.contents.
+function apiCallPost(params) {
+  return fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(params),
+    redirect: "follow"
+  }).then(function(r){ return r.json(); });
 }
 
 function updateSyncUI(){
