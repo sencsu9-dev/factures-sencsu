@@ -271,7 +271,7 @@
 // ⚠️ REMPLACER par l'URL de VOTRE Web App Apps Script (celle qui finit par /exec)
 var API_URL = "https://script.google.com/macros/s/AKfycbzeWb2rh4RY-sAgQOkLXf95msAJHBdXq68HjieZgZyKS4xDp0KuD16uHiiX8hyWpbXXWg/exec";
 
-var APP = { auth:null, user:null, postes:[], regimes:{}, referentiels:{services:[],prestations:[],prix:{}}, currentRegime:null };
+var APP = { auth:null, user:null, postes:[], regimes:{}, referentiels:{services:[],prestations:[],prix:{},parService:{}}, currentRegime:null };
 var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
 var deferredPrompt = null;
 
@@ -650,6 +650,9 @@ function openForm(regimeKey, keepAdmin){
       var empty=document.createElement("option"); empty.value=""; empty.textContent="— choisir —"; el.appendChild(empty);
       var opts=useSelectRef?APP.referentiels.services:(f.options||[]);
       opts.forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
+      if(useSelectRef && f.list==="services"){
+        el.addEventListener("change",function(){ majPrestationsSelon(el.value); });
+      }
     } else {
       el=document.createElement("input");
       el.type=(f.type==="datetime")?"datetime-local":(f.type==="number")?"number":(f.type==="date")?"date":(f.type==="tel")?"tel":"text";
@@ -672,6 +675,7 @@ function openForm(regimeKey, keepAdmin){
       }
     }
     el.setAttribute("data-field",f.name);
+    if(f.list==="prestations") el.setAttribute("data-prestation","1");
     if(f.qte){ el.setAttribute("data-qte","1"); el.addEventListener("input",computeMontant); }
     if(f.pu){ el.setAttribute("data-pu","1"); el.addEventListener("input",computeMontant); }
     if(f.montant){ el.setAttribute("data-montant","1"); }
@@ -682,6 +686,21 @@ function openForm(regimeKey, keepAdmin){
     box.appendChild(el);
   });
   showScreen("screenForm");
+}
+
+function majPrestationsSelon(service){
+  var parService=(APP.referentiels&&APP.referentiels.parService)||{};
+  var liste=parService[service]||[];
+  var champ=document.querySelector('#formFields [data-prestation]');
+  if(!champ) return;
+  var dlId="dl_prestations_filtre";
+  var dl=document.getElementById(dlId);
+  if(!dl){ dl=document.createElement("datalist"); dl.id=dlId; document.body.appendChild(dl); }
+  dl.innerHTML="";
+  var source=liste.length?liste:(APP.referentiels.prestations||[]);
+  source.forEach(function(v){ var o=document.createElement("option"); o.value=v; dl.appendChild(o); });
+  champ.setAttribute("list",dlId);
+  champ.value="";
 }
 
 function computeMontant(){
