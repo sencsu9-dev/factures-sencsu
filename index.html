@@ -304,7 +304,35 @@ var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
 var deferredPrompt = null;
 
 function $(id){ return document.getElementById(id); }
-function showScreen(id){ document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");}); $(id).classList.add("active"); window.scrollTo(0,0); }
+var _screenStack = [];
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+  $(id).classList.add("active");
+  window.scrollTo(0,0);
+  // Gestion du bouton retour du téléphone : empiler l'écran dans l'historique
+  var courant = _screenStack[_screenStack.length-1];
+  if (courant !== id) {
+    _screenStack.push(id);
+    try { history.pushState({ screen: id }, ""); } catch(e){}
+  }
+}
+
+// Intercepter le bouton retour : revenir à l'écran précédent au lieu de quitter l'app
+window.addEventListener("popstate", function(){
+  if (_screenStack.length > 1) {
+    _screenStack.pop();                              // retirer l'écran courant
+    var precedent = _screenStack[_screenStack.length-1];
+    // Afficher l'écran précédent sans re-empiler
+    document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+    if ($(precedent)) $(precedent).classList.add("active");
+    window.scrollTo(0,0);
+    // Ré-empiler une entrée pour rester capable d'intercepter le prochain retour
+    try { history.pushState({ screen: precedent }, ""); } catch(e){}
+  } else {
+    // Un seul écran : ré-empiler pour ne pas quitter par accident
+    try { history.pushState({ screen: _screenStack[0] || "screenLogin" }, ""); } catch(e){}
+  }
+});
 function toast(m,ms){ var t=$("toast"); t.textContent=m; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(function(){t.style.display="none";}, ms||2600); }
 function showLoader(msg,sub){ $("loaderMsg").textContent=msg||"Traitement..."; $("loaderSub").textContent=sub||""; $("loader").classList.add("show"); }
 function hideLoader(){ $("loader").classList.remove("show"); }
@@ -810,6 +838,7 @@ function _creerChampCSU(f){
   if(f.qte){ el.setAttribute("data-qte","1"); el.addEventListener("input",computeMontant); }
   if(f.pu){ el.setAttribute("data-pu","1"); el.addEventListener("input",computeMontant); }
   if(f.montant){ el.setAttribute("data-montant","1"); }
+  if(f.defaut!==undefined && f.defaut!=="") el.value=f.defaut;
   return el;
 }
 
@@ -1051,6 +1080,8 @@ function installerApp(){
 // ══════════════ DEMARRAGE ══════════════
 (function init(){
   if(!navigator.onLine) $("offlineBanner").style.display="block";
+  // Initialiser l'historique pour intercepter le bouton retour du téléphone
+  try { history.pushState({ screen: "init" }, ""); } catch(e){}
   // Enregistrer le service worker (le coeur de l'offline)
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js").catch(function(e){ console.log("SW erreur:", e); });
