@@ -258,13 +258,11 @@
       <div style="border-top:1px solid #eee;margin:16px 0 10px"></div>
       <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">Prestations du patient</div>
       <div id="formActeInputs"></div>
-      <button class="btn secondary" onclick="ajouterActeCSU()" style="margin-top:8px">➕ Ajouter cette prestation</button>
       <div class="err" id="acteCsuErr"></div>
       <div id="formPanier" style="margin-top:12px"></div>
       <div id="formPanierTotal" style="text-align:right;font-size:15px;font-weight:700;color:var(--green);margin-top:6px"></div>
     </div>
     <button class="btn" onclick="saveEntry(true)" style="margin-top:12px">💾 Valider le patient</button>
-    <button class="btn secondary" onclick="saveEntry(false)">➕ Valider & nouveau patient</button>
     <div class="err" id="formErr"></div>
   </div>
 </div>
@@ -723,14 +721,35 @@ function openForm(regimeKey, keepAdmin){
   var acteBox=$("formActeInputs"); acteBox.innerHTML="";
 
   regime.fields.forEach(function(f){
-    var cible=estChampActe(f)?acteBox:box;
-    var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; cible.appendChild(lbl);
+    if(estChampActe(f)) return;
+    var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; box.appendChild(lbl);
     var el=_creerChampCSU(f);
-    if(keepAdmin && !estChampActe(f) && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){
-      el.value=oldValues[f.name];
-    }
-    cible.appendChild(el);
+    if(keepAdmin && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){ el.value=oldValues[f.name]; }
+    box.appendChild(el);
   });
+
+  if(regimeAActes){
+    var fService=APP._csuActeFields.filter(function(f){return f.list==="services";})[0];
+    var fAutres=APP._csuActeFields.filter(function(f){return f.list!=="services";});
+    if(fService){
+      var lblS=document.createElement("label"); lblS.textContent=fService.name; if(fService.req) lblS.className="req";
+      acteBox.appendChild(lblS); acteBox.appendChild(_creerChampCSU(fService));
+    }
+    var ligne=document.createElement("div");
+    ligne.style.cssText="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:4px";
+    fAutres.forEach(function(f){
+      var col=document.createElement("div");
+      col.style.cssText=(f.list==="prestations")?"flex:1 1 100%;min-width:150px":"flex:1 1 80px;min-width:70px";
+      var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; lbl.style.cssText="font-size:12px";
+      col.appendChild(lbl); col.appendChild(_creerChampCSU(f)); ligne.appendChild(col);
+    });
+    var colBtn=document.createElement("div"); colBtn.style.cssText="flex:0 0 auto";
+    var btnAdd=document.createElement("button"); btnAdd.className="btn"; btnAdd.type="button";
+    btnAdd.textContent="➕"; btnAdd.title="Ajouter"; btnAdd.style.cssText="padding:12px 18px;margin:0";
+    btnAdd.onclick=ajouterActeCSU; colBtn.appendChild(btnAdd); ligne.appendChild(colBtn);
+    acteBox.appendChild(ligne);
+  }
+
   $("formActesZone").style.display=regimeAActes?"block":"none";
   $("acteCsuErr").textContent=""; renderPanierCSU();
   showScreen("screenForm");
@@ -836,7 +855,7 @@ function renderPanierCSU(){
 function majPrestationsSelon(service){
   var parService=(APP.referentiels&&APP.referentiels.parService)||{};
   var liste=parService[service]||[];
-  var champ=document.querySelector('#formFields [data-prestation]');
+  var champ=document.querySelector('#formActeInputs [data-prestation]')||document.querySelector('#formFields [data-prestation]');
   if(!champ) return;
   var dlId="dl_prestations_filtre";
   var dl=document.getElementById(dlId);
