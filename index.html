@@ -150,7 +150,24 @@
     </div>
   </div>
 
-  <button class="btn secondary" onclick="doLogout()" style="margin-top:10px">Se déconnecter</button>
+  <button class="btn secondary" onclick="showMdpScreen()" style="margin-top:10px">🔑 Changer mon mot de passe</button>
+  <button class="btn secondary" onclick="doLogout()" style="margin-top:8px">Se déconnecter</button>
+</div>
+
+<!-- CHANGER MOT DE PASSE -->
+<div class="screen" id="screenMdp">
+  <div class="form-head"><button class="back" onclick="retourDepuisMdp()">←</button>
+    <div class="form-title">🔑 Changer mon mot de passe</div></div>
+  <div class="form-box">
+    <label class="req">Mot de passe actuel</label>
+    <input type="password" id="mdpAncien" placeholder="Votre mot de passe actuel">
+    <label class="req">Nouveau mot de passe</label>
+    <input type="password" id="mdpNouveau" placeholder="Au moins 4 caractères">
+    <label class="req">Confirmer</label>
+    <input type="password" id="mdpConfirm" placeholder="Retapez le nouveau mot de passe">
+    <button class="btn" onclick="changerMotDePasse()">✅ Modifier</button>
+    <div class="err" id="mdpErr"></div>
+  </div>
 </div>
 
 <!-- HORS CSU : REFERENTIELS -->
@@ -629,6 +646,27 @@ function applyBootstrap(res){
   buildHomeGrid(); updateSyncUI(); showScreen("screenHome"); retourModeChoice(); trySync(false);
 }
 
+function showMdpScreen(){
+  $("mdpAncien").value=""; $("mdpNouveau").value=""; $("mdpConfirm").value=""; $("mdpErr").textContent="";
+  showScreen("screenMdp");
+}
+function retourDepuisMdp(){ showScreen("screenHome"); retourModeChoice(); }
+function changerMotDePasse(){
+  var ancien=$("mdpAncien").value, nouveau=$("mdpNouveau").value, conf=$("mdpConfirm").value;
+  if(!ancien){ $("mdpErr").textContent="Saisissez votre mot de passe actuel."; return; }
+  if(!nouveau||nouveau.length<4){ $("mdpErr").textContent="Au moins 4 caractères."; return; }
+  if(nouveau!==conf){ $("mdpErr").textContent="La confirmation ne correspond pas."; return; }
+  if(!navigator.onLine){ $("mdpErr").textContent="📴 Connexion requise."; return; }
+  $("mdpErr").textContent=""; showLoader("Modification...");
+  apiCall({ action:"changer_mdp", email:APP.auth.email, pin:APP.auth.pin, ancien:ancien, nouveau:nouveau }).then(function(r){
+    hideLoader();
+    if(r.error){ $("mdpErr").textContent=r.error; return; }
+    APP.auth.pin=nouveau;
+    try{ localStorage.setItem(LS_AUTH, JSON.stringify(APP.auth)); }catch(e){}
+    toast("✅ "+r.message); retourDepuisMdp();
+  }).catch(function(e){ hideLoader(); $("mdpErr").textContent="Erreur : "+e.message; });
+}
+
 function doLogout(){
   var q=getQueue();
   if(q.length>0 && !confirm(q.length+" dossier(s) non synchronisé(s). Se déconnecter quand même ?")) return;
@@ -677,6 +715,14 @@ function openForm(regimeKey, keepAdmin){
       el=document.createElement("select");
       var empty=document.createElement("option"); empty.value=""; empty.textContent="— choisir —"; el.appendChild(empty);
       (f.options||[]).forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
+      if(/forfait/i.test(f.name)){
+        el.addEventListener("change",function(){
+          var m=String(el.value).match(/(\d[\d\s]*)\s*$/);
+          if(m){ var montant=parseInt(m[1].replace(/\s/g,""),10);
+            var mtEl=box.querySelector('[data-field="Montant Total"]')||box.querySelector('[data-montant]');
+            if(mtEl&&!isNaN(montant)) mtEl.value=montant; }
+        });
+      }
     } else {
       el=document.createElement("input");
       el.type=(f.type==="datetime")?"datetime-local":(f.type==="number")?"number":(f.type==="date")?"date":(f.type==="tel")?"tel":"text";
