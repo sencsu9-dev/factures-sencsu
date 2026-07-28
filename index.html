@@ -806,6 +806,7 @@ function ajouterActeCSU(){
   if(!APP._csuPanier) APP._csuPanier=[];
   APP._csuPanier.push(acte);
   (APP._csuActeFields||[]).forEach(function(f){
+    if(f.list==="services") return;   // garder le service sélectionné
     var el=acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]'); if(el) el.value="";
   });
   renderPanierCSU(); toast("✅ Prestation ajoutée");
