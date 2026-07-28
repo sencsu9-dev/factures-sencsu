@@ -254,8 +254,17 @@
   </div>
   <div class="form-box">
     <div id="formFields"></div>
-    <button class="btn" onclick="saveEntry(true)">💾 Enregistrer</button>
-    <button class="btn secondary" onclick="saveEntry(false)">➕ Enregistrer & Nouveau (même patient)</button>
+    <div id="formActesZone" style="display:none">
+      <div style="border-top:1px solid #eee;margin:16px 0 10px"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">Prestations du patient</div>
+      <div id="formActeInputs"></div>
+      <button class="btn secondary" onclick="ajouterActeCSU()" style="margin-top:8px">➕ Ajouter cette prestation</button>
+      <div class="err" id="acteCsuErr"></div>
+      <div id="formPanier" style="margin-top:12px"></div>
+      <div id="formPanierTotal" style="text-align:right;font-size:15px;font-weight:700;color:var(--green);margin-top:6px"></div>
+    </div>
+    <button class="btn" onclick="saveEntry(true)" style="margin-top:12px">💾 Valider le patient</button>
+    <button class="btn secondary" onclick="saveEntry(false)">➕ Valider & nouveau patient</button>
     <div class="err" id="formErr"></div>
   </div>
 </div>
@@ -707,69 +716,120 @@ function openForm(regimeKey, keepAdmin){
     box.appendChild(lbl); box.appendChild(sel);
   }
   var today=new Date().toISOString().slice(0,10);
+  function estChampActe(f){ return f.list==="services"||f.list==="prestations"||f.qte||f.pu||f.montant; }
+  var regimeAActes=regime.fields.some(estChampActe);
+  APP._csuActeFields=regime.fields.filter(estChampActe);
+  APP._csuPanier=[];
+  var acteBox=$("formActeInputs"); acteBox.innerHTML="";
+
   regime.fields.forEach(function(f){
-    var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; box.appendChild(lbl);
-    var el;
-    var useSelectRef=(f.list==="services" && APP.referentiels.services && APP.referentiels.services.length>0);
-    if(f.type==="select"){
-      el=document.createElement("select");
-      var empty=document.createElement("option"); empty.value=""; empty.textContent="— choisir —"; el.appendChild(empty);
-      (f.options||[]).forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
-      if(/forfait/i.test(f.name)){
-        el.addEventListener("change",function(){
-          var m=String(el.value).match(/(\d[\d\s]*)\s*$/);
-          if(m){ var montant=parseInt(m[1].replace(/\s/g,""),10);
-            var mtEl=box.querySelector('[data-field="Montant Total"]')||box.querySelector('[data-montant]');
-            if(mtEl&&!isNaN(montant)) mtEl.value=montant; }
-        });
-      }
-    } else {
-      el=document.createElement("input");
-      el.type=(f.type==="datetime")?"datetime-local":(f.type==="number")?"number":(f.type==="date")?"date":(f.type==="tel")?"tel":"text";
-      if(f.type==="date"&&f.today) el.value=today;
-      if(f.type==="number"){ el.min="0"; el.inputMode="numeric"; }
-      // SERVICE recherchable
-      if(useSelectRef && f.list==="services"){
-        el.setAttribute("placeholder","Rechercher un service...");
-        var dlS="dl_services";
-        if(!document.getElementById(dlS)){
-          var dls=document.createElement("datalist"); dls.id=dlS;
-          APP.referentiels.services.forEach(function(v){ var o=document.createElement("option"); o.value=v; dls.appendChild(o); });
-          document.body.appendChild(dls);
-        }
-        el.setAttribute("list",dlS);
-        el.addEventListener("change",function(){ majPrestationsSelon(el.value); });
-        el.addEventListener("input",function(){ majPrestationsSelon(el.value); });
-      }
-      else if(f.list && APP.referentiels[f.list] && APP.referentiels[f.list].length){
-        if(f.list==="prestations") el.setAttribute("placeholder","Rechercher une prestation...");
-        var dlId="dl_"+f.list;
-        if(!document.getElementById(dlId)){
-          var dl=document.createElement("datalist"); dl.id=dlId;
-          APP.referentiels[f.list].forEach(function(v){ var o=document.createElement("option"); o.value=v; dl.appendChild(o); });
-          document.body.appendChild(dl);
-        }
-        el.setAttribute("list",dlId);
-        if(f.list==="prestations"){
-          el.addEventListener("change",function(){
-            var prix=APP.referentiels.prix[el.value];
-            if(prix!==undefined){ var pu=box.querySelector("[data-pu]"); if(pu){ pu.value=prix; computeMontant(); } }
-          });
-        }
-      }
-    }
-    el.setAttribute("data-field",f.name);
-    if(f.list==="prestations") el.setAttribute("data-prestation","1");
-    if(f.qte){ el.setAttribute("data-qte","1"); el.addEventListener("input",computeMontant); }
-    if(f.pu){ el.setAttribute("data-pu","1"); el.addEventListener("input",computeMontant); }
-    if(f.montant){ el.setAttribute("data-montant","1"); }
-    if(keepAdmin && oldValues[f.name]!==undefined && !f.qte && !f.pu && !f.montant &&
-       !/prestation|service|diagnostic|forfait|date de prise|nbre|séance|poche/i.test(f.name)){
+    var cible=estChampActe(f)?acteBox:box;
+    var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; cible.appendChild(lbl);
+    var el=_creerChampCSU(f);
+    if(keepAdmin && !estChampActe(f) && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){
       el.value=oldValues[f.name];
     }
-    box.appendChild(el);
+    cible.appendChild(el);
   });
+  $("formActesZone").style.display=regimeAActes?"block":"none";
+  $("acteCsuErr").textContent=""; renderPanierCSU();
   showScreen("screenForm");
+}
+
+function _creerChampCSU(f){
+  var box=$("formFields"), today=new Date().toISOString().slice(0,10);
+  var el;
+  var useSelectRef=(f.list==="services" && APP.referentiels.services && APP.referentiels.services.length>0);
+  if(f.type==="select"){
+    el=document.createElement("select");
+    var empty=document.createElement("option"); empty.value=""; empty.textContent="— choisir —"; el.appendChild(empty);
+    (f.options||[]).forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
+    if(/forfait/i.test(f.name)){
+      el.addEventListener("change",function(){
+        var m=String(el.value).match(/(\d[\d\s]*)\s*$/);
+        if(m){ var montant=parseInt(m[1].replace(/\s/g,""),10);
+          var mtEl=$("formActeInputs").querySelector('[data-field="Montant Total"]')||$("formActeInputs").querySelector('[data-montant]');
+          if(mtEl&&!isNaN(montant)) mtEl.value=montant; }
+      });
+    }
+  } else {
+    el=document.createElement("input");
+    el.type=(f.type==="datetime")?"datetime-local":(f.type==="number")?"number":(f.type==="date")?"date":(f.type==="tel")?"tel":"text";
+    if(f.type==="date"&&f.today) el.value=today;
+    if(f.type==="number"){ el.min="0"; el.inputMode="numeric"; }
+    if(useSelectRef && f.list==="services"){
+      el.setAttribute("placeholder","Rechercher un service...");
+      var dlS="dl_services";
+      if(!document.getElementById(dlS)){
+        var dls=document.createElement("datalist"); dls.id=dlS;
+        APP.referentiels.services.forEach(function(v){ var o=document.createElement("option"); o.value=v; dls.appendChild(o); });
+        document.body.appendChild(dls);
+      }
+      el.setAttribute("list",dlS);
+      el.addEventListener("change",function(){ majPrestationsSelon(el.value); });
+      el.addEventListener("input",function(){ majPrestationsSelon(el.value); });
+    }
+    else if(f.list && APP.referentiels[f.list] && APP.referentiels[f.list].length){
+      if(f.list==="prestations") el.setAttribute("placeholder","Rechercher une prestation...");
+      var dlId="dl_"+f.list;
+      if(!document.getElementById(dlId)){
+        var dl=document.createElement("datalist"); dl.id=dlId;
+        APP.referentiels[f.list].forEach(function(v){ var o=document.createElement("option"); o.value=v; dl.appendChild(o); });
+        document.body.appendChild(dl);
+      }
+      el.setAttribute("list",dlId);
+      if(f.list==="prestations"){
+        el.addEventListener("change",function(){
+          var prix=APP.referentiels.prix[el.value];
+          if(prix!==undefined){ var pu=$("formActeInputs").querySelector("[data-pu]"); if(pu){ pu.value=prix; computeMontant(); } }
+        });
+      }
+    }
+  }
+  el.setAttribute("data-field",f.name);
+  if(f.list==="prestations") el.setAttribute("data-prestation","1");
+  if(f.qte){ el.setAttribute("data-qte","1"); el.addEventListener("input",computeMontant); }
+  if(f.pu){ el.setAttribute("data-pu","1"); el.addEventListener("input",computeMontant); }
+  if(f.montant){ el.setAttribute("data-montant","1"); }
+  return el;
+}
+
+function ajouterActeCSU(){
+  var acteBox=$("formActeInputs"), acte={}, manq=[];
+  (APP._csuActeFields||[]).forEach(function(f){
+    var el=acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]');
+    var val=el?el.value.trim():""; acte[f.name]=val;
+    if(f.req&&!val) manq.push(f.name);
+  });
+  if(manq.length){ $("acteCsuErr").textContent="Champs manquants : "+manq.join(", "); return; }
+  $("acteCsuErr").textContent="";
+  if(!APP._csuPanier) APP._csuPanier=[];
+  APP._csuPanier.push(acte);
+  (APP._csuActeFields||[]).forEach(function(f){
+    var el=acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]'); if(el) el.value="";
+  });
+  renderPanierCSU(); toast("✅ Prestation ajoutée");
+}
+function retirerActeCSU(i){ APP._csuPanier.splice(i,1); renderPanierCSU(); }
+function renderPanierCSU(){
+  var panier=APP._csuPanier||[], box=$("formPanier"); if(!box) return;
+  if(panier.length===0){ box.innerHTML='<p style="font-size:12px;color:#999;text-align:center">Aucune prestation ajoutée.</p>'; $("formPanierTotal").textContent=""; return; }
+  var fService=(APP._csuActeFields||[]).filter(function(f){return f.list==="services";})[0];
+  var fPresta=(APP._csuActeFields||[]).filter(function(f){return f.list==="prestations";})[0];
+  var fMontant=(APP._csuActeFields||[]).filter(function(f){return f.montant;})[0];
+  var fQte=(APP._csuActeFields||[]).filter(function(f){return f.qte;})[0];
+  var total=0,h="";
+  panier.forEach(function(a,i){
+    var service=fService?a[fService.name]:"", presta=fPresta?a[fPresta.name]:"";
+    var mt=fMontant?(parseFloat(a[fMontant.name])||0):0, qte=fQte?a[fQte.name]:"";
+    total+=mt;
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-bottom:1px solid #eee">'+
+       '<div><div style="font-weight:600">'+(presta||"—")+'</div>'+
+       '<div style="color:#888">'+(service?'🩺 '+service:'')+(qte?' · ×'+qte:'')+'</div></div>'+
+       '<div style="display:flex;align-items:center;gap:6px">'+(mt?'<b>'+fmtFCFA(mt)+'</b>':'')+
+       '<button class="btn small secondary" onclick="retirerActeCSU('+i+')">✕</button></div></div>';
+  });
+  box.innerHTML=h; $("formPanierTotal").textContent=total>0?"TOTAL : "+fmtFCFA(total):"";
 }
 
 function majPrestationsSelon(service){
@@ -788,13 +848,18 @@ function majPrestationsSelon(service){
 }
 
 function computeMontant(){
-  var box=$("formFields"), qte=box.querySelector("[data-qte]"), pu=box.querySelector("[data-pu]"), mt=box.querySelector("[data-montant]");
+  var box=$("formActeInputs"), qte=box.querySelector("[data-qte]"), pu=box.querySelector("[data-pu]"), mt=box.querySelector("[data-montant]");
   if(qte&&pu&&mt){ var q=parseFloat(qte.value), p=parseFloat(pu.value); if(!isNaN(q)&&!isNaN(p)) mt.value=q*p; }
 }
 
 function saveEntry(closeAfter){
-  var regime=APP.regimes[APP.currentRegime], box=$("formFields"), data={}, missing=[], dateNaissance=null;
+  var regime=APP.regimes[APP.currentRegime], box=$("formFields"), missing=[], dateNaissance=null;
+  function estChampActe(f){ return f.list==="services"||f.list==="prestations"||f.qte||f.pu||f.montant; }
+  var regimeAActes=regime.fields.some(estChampActe);
+
+  var patient={};
   regime.fields.forEach(function(f){
+    if(estChampActe(f)) return;
     var el=box.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]');
     var val=el?el.value.trim():"";
     if(f.name==="Date de naissance" && val) dateNaissance=val;
@@ -805,7 +870,7 @@ function saveEntry(closeAfter){
         if(f.type==="datetime") val+=" "+("0"+d.getHours()).slice(-2)+"h"+("0"+d.getMinutes()).slice(-2);
       }
     }
-    data[f.name]=val; if(f.req && !val) missing.push(f.name);
+    patient[f.name]=val; if(f.req && !val) missing.push(f.name);
   });
   if(missing.length){ $("formErr").textContent="Champs obligatoires manquants : "+missing.join(", "); return; }
   if(dateNaissance){
@@ -813,9 +878,35 @@ function saveEntry(closeAfter){
     if(APP.currentRegime==="ENFANTS_5ANS" && age>=5){ $("formErr").textContent="⛔ Cet enfant a "+age+" ans (régime réservé aux moins de 5 ans)."; return; }
     if(APP.currentRegime==="SESAME" && age<60){ $("formErr").textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; }
   }
+
+  var actes;
+  if(regimeAActes){
+    actes=(APP._csuPanier||[]).slice();
+    if(actes.length===0){ $("formErr").textContent="Ajoutez au moins une prestation."; return; }
+    actes=actes.map(function(a){
+      var copie={};
+      (APP._csuActeFields||[]).forEach(function(f){
+        var val=a[f.name]||"";
+        if((f.type==="date"||f.type==="datetime") && val){
+          var da=new Date(val);
+          if(!isNaN(da)){ var dd2=("0"+da.getDate()).slice(-2), mm2=("0"+(da.getMonth()+1)).slice(-2); val=dd2+"/"+mm2+"/"+da.getFullYear(); }
+        }
+        copie[f.name]=val;
+      });
+      return copie;
+    });
+  } else { actes=[{}]; }
+
   var posteSel=$("fieldPoste"), poste=posteSel?posteSel.value:APP.user.poste;
-  var q=getQueue(); q.push({id:uid(), regime:APP.currentRegime, poste:poste, data:data}); setQueue(q);
-  updateSyncUI(); $("formErr").textContent=""; toast("💾 Dossier enregistré ("+q.length+" en attente)");
+  var q=getQueue();
+  actes.forEach(function(acte){
+    var data={};
+    Object.keys(patient).forEach(function(k){ data[k]=patient[k]; });
+    Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
+    q.push({id:uid(), regime:APP.currentRegime, poste:poste, data:data});
+  });
+  setQueue(q); updateSyncUI(); $("formErr").textContent="";
+  toast("💾 "+actes.length+" prestation(s) enregistrée(s) ("+q.length+" en attente)");
   trySync(false);
   if(closeAfter) showScreen("screenHome"); else openForm(APP.currentRegime, true);
 }
