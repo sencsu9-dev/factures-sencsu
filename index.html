@@ -527,10 +527,16 @@ function setQueue(q){ localStorage.setItem(LS_QUEUE, JSON.stringify(q)); }
 function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,8); }
 
 // ══════════════ APPEL API (vers Apps Script) ══════════════
-// Utilise fetch avec la methode POST. En cas d'echec (hors ligne), rejette la promesse.
+// Strategie : POST d'abord (fiable, pas de redirection 404). Si POST echoue
+// (ex : blocage CORS sur certains Safari), on bascule sur JSONP.
 function apiCall(params) {
-  // JSONP : contourne totalement le blocage CORS de Safari/iPhone.
-  // On charge la reponse comme un <script> ; le serveur renvoie callback(JSON).
+  return apiCallPost(params).catch(function(){
+    return apiCallJsonp(params);
+  });
+}
+
+// JSONP : charge la reponse comme un <script>. Fallback si POST bloque (Safari/iPhone).
+function apiCallJsonp(params) {
   return new Promise(function(resolve, reject){
     var cbName = "sencsu_cb_" + Date.now() + "_" + Math.floor(Math.random()*100000);
     var timeout = setTimeout(function(){
@@ -564,15 +570,18 @@ function apiCall(params) {
   });
 }
 
-// Appel POST pour les GROS payloads (fichiers Excel base64) qui ne tiennent pas dans une URL.
-// Utilise text/plain pour eviter le preflight CORS ; Apps Script lit e.postData.contents.
+// Appel POST : fiable pour tous les payloads (petits et gros fichiers Excel base64).
+// text/plain evite le preflight CORS ; Apps Script lit e.postData.contents.
 function apiCallPost(params) {
   return fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(params),
     redirect: "follow"
-  }).then(function(r){ return r.json(); });
+  }).then(function(r){
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
 }
 
 function updateSyncUI(){
