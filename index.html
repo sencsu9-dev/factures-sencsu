@@ -54,7 +54,8 @@
   .syncbar.pending { border-left:4px solid var(--orange); }
   .syncbar.done { border-left:4px solid var(--green); }
   .form-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-  .back { background:none; border:0; font-size:22px; cursor:pointer; color:var(--green); }
+  .back { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; background:var(--green); border:0; border-radius:12px; font-size:24px; line-height:1; cursor:pointer; color:#fff; box-shadow:0 2px 6px rgba(0,0,0,.15); flex:0 0 auto; }
+  .back:active { opacity:.85; }
   .form-title { font-size:15px; font-weight:700; }
   .req::after { content:" *"; color:var(--danger); }
   .form-box { background:#fff; border-radius:12px; padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
