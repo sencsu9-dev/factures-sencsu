@@ -304,33 +304,54 @@ var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
 var deferredPrompt = null;
 
 function $(id){ return document.getElementById(id); }
-var _screenStack = [];
+// ── Navigation & bouton retour du téléphone ──
+// Pile d'états : chaque état est un écran {type:"screen",id} ou un mode ICP {type:"mode",mode}
+var _navStack = [];
+function _pushEtat(etat){
+  var haut = _navStack[_navStack.length-1];
+  // Éviter les doublons consécutifs
+  if (haut && JSON.stringify(haut) === JSON.stringify(etat)) return;
+  _navStack.push(etat);
+  try { history.pushState(etat, ""); } catch(e){}
+}
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
-  $(id).classList.add("active");
+  if ($(id)) $(id).classList.add("active");
   window.scrollTo(0,0);
-  // Gestion du bouton retour du téléphone : empiler l'écran dans l'historique
-  var courant = _screenStack[_screenStack.length-1];
-  if (courant !== id) {
-    _screenStack.push(id);
-    try { history.pushState({ screen: id }, ""); } catch(e){}
+  _pushEtat({ type:"screen", id:id });
+}
+// Applique un état sans l'empiler (utilisé au retour)
+function _appliquerEtat(etat){
+  if (!etat) return;
+  if (etat.type === "screen") {
+    document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+    if ($(etat.id)) $(etat.id).classList.add("active");
+    // Si on revient sur l'accueil, remettre le choix de mode par défaut pour un ICP
+    if (etat.id === "screenHome" && APP.user && APP.user.role === "ICP") {
+      $("icpModeChoice").style.display="block";
+      $("icpModeCSU").style.display="none"; $("icpModeHC").style.display="none";
+    }
+    window.scrollTo(0,0);
+  } else if (etat.type === "mode") {
+    // Revenir dans screenHome et afficher le bon mode
+    document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+    if ($("screenHome")) $("screenHome").classList.add("active");
+    $("icpModeChoice").style.display="none";
+    $("icpModeCSU").style.display = (etat.mode==="csu")?"block":"none";
+    $("icpModeHC").style.display = (etat.mode==="csu")?"none":"block";
+    window.scrollTo(0,0);
   }
 }
-
-// Intercepter le bouton retour : revenir à l'écran précédent au lieu de quitter l'app
+// Bouton retour : dépiler et appliquer l'état précédent au lieu de quitter l'app
 window.addEventListener("popstate", function(){
-  if (_screenStack.length > 1) {
-    _screenStack.pop();                              // retirer l'écran courant
-    var precedent = _screenStack[_screenStack.length-1];
-    // Afficher l'écran précédent sans re-empiler
-    document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
-    if ($(precedent)) $(precedent).classList.add("active");
-    window.scrollTo(0,0);
-    // Ré-empiler une entrée pour rester capable d'intercepter le prochain retour
-    try { history.pushState({ screen: precedent }, ""); } catch(e){}
+  if (_navStack.length > 1) {
+    _navStack.pop();
+    var precedent = _navStack[_navStack.length-1];
+    _appliquerEtat(precedent);
+    try { history.pushState(precedent, ""); } catch(e){}
   } else {
-    // Un seul écran : ré-empiler pour ne pas quitter par accident
-    try { history.pushState({ screen: _screenStack[0] || "screenLogin" }, ""); } catch(e){}
+    // Un seul état : ré-empiler pour ne pas quitter
+    try { history.pushState(_navStack[0] || {type:"screen",id:"screenLogin"}, ""); } catch(e){}
   }
 });
 function toast(m,ms){ var t=$("toast"); t.textContent=m; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(function(){t.style.display="none";}, ms||2600); }
@@ -342,15 +363,20 @@ function choisirMode(mode){
   $("icpModeChoice").style.display="none";
   $("icpModeCSU").style.display = (mode==="csu")?"block":"none";
   $("icpModeHC").style.display = (mode==="csu")?"none":"block";
+  // Empiler un état pour que le bouton retour revienne au choix de mode
+  _pushEtat({ type:"mode", mode:mode });
 }
 function retourModeChoice(){
   $("icpModeChoice").style.display="block";
   $("icpModeCSU").style.display="none"; $("icpModeHC").style.display="none";
+  _pushEtat({ type:"screen", id:"screenHome" });
 }
 function retourHCAccueil(){
-  showScreen("screenHome");
+  document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+  $("screenHome").classList.add("active");
   $("icpModeChoice").style.display="none";
   $("icpModeCSU").style.display="none"; $("icpModeHC").style.display="block";
+  _pushEtat({ type:"mode", mode:"horscsu" });
 }
 function fmtFCFA(n){ n=Math.round(parseFloat(n)||0); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" FCFA"; }
 
@@ -1081,7 +1107,8 @@ function installerApp(){
 (function init(){
   if(!navigator.onLine) $("offlineBanner").style.display="block";
   // Initialiser l'historique pour intercepter le bouton retour du téléphone
-  try { history.pushState({ screen: "init" }, ""); } catch(e){}
+  try { history.replaceState({ type:"screen", id:"screenLogin" }, ""); history.pushState({ type:"screen", id:"screenLogin" }, ""); } catch(e){}
+  _navStack = [{ type:"screen", id:"screenLogin" }];
   // Enregistrer le service worker (le coeur de l'offline)
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js").catch(function(e){ console.log("SW erreur:", e); });
