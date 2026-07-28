@@ -194,9 +194,13 @@
     <div style="border-top:1px solid #eee;margin:16px 0 10px"></div>
     <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">Ajouter un acte</div>
     <label class="req">Service</label>
-    <select id="hcActeService" onchange="onServiceChange()"><option value="">— choisir un service —</option></select>
+    <input list="hcDlActeService" id="hcActeService" placeholder="Rechercher un service..." onchange="onServiceChange()" oninput="onServiceChange()">
+    <datalist id="hcDlActeService"></datalist>
     <label class="req">Prestation</label>
-    <select id="hcActePresta"><option value="">— choisir d'abord un service —</option></select>
+    <input list="hcDlActePresta" id="hcActePresta" placeholder="Rechercher ou saisir une prestation..." onchange="onPrestaChange()" oninput="onPrestaChange()">
+    <datalist id="hcDlActePresta"></datalist>
+    <div id="hcPuWrap" style="display:none"><label>Prix (FCFA) <span style="color:#999;font-weight:400">— non listée</span></label>
+      <input type="number" id="hcActePu" min="0" inputmode="numeric" placeholder="Saisir le prix"></div>
     <div id="hcQteWrap" style="display:none"><label>Quantité</label>
       <input type="number" id="hcActeQte" min="1" value="1" inputmode="numeric"></div>
     <button class="btn secondary" onclick="ajouterActe()" style="margin-top:10px">➕ Ajouter cet acte</button>
@@ -391,36 +395,51 @@ function showHCFacture(){
   } else { remplirServiceSelect(); }
 }
 function remplirServiceSelect(){
-  var sel=$("hcActeService"); sel.innerHTML='<option value="">— choisir un service —</option>';
+  var dl=$("hcDlActeService"); dl.innerHTML="";
   (APP._hcServices||[]).forEach(function(s){
-    var o=document.createElement("option"); o.value=s.nom; o.textContent=s.nom+(s.depositaire?" (dépositaire)":""); sel.appendChild(o);
+    var o=document.createElement("option"); o.value=s.nom; if(s.depositaire)o.label="dépositaire"; dl.appendChild(o);
   });
-  $("hcActePresta").innerHTML='<option value="">— choisir d\'abord un service —</option>';
-  $("hcQteWrap").style.display="none";
+  $("hcActeService").value=""; $("hcActePresta").value="";
+  $("hcDlActePresta").innerHTML=""; $("hcQteWrap").style.display="none";
 }
 function onServiceChange(){
   var nom=$("hcActeService").value;
   var service=(APP._hcServices||[]).filter(function(s){return s.nom===nom;})[0];
-  var selP=$("hcActePresta"); selP.innerHTML='<option value="">— choisir —</option>';
+  var dl=$("hcDlActePresta"); dl.innerHTML="";
+  $("hcPuWrap").style.display="none"; $("hcActePu").value="";
   if(!service){ $("hcQteWrap").style.display="none"; return; }
   service.prestations.forEach(function(p){
-    var o=document.createElement("option"); o.value=p.nom; o.textContent=p.nom+" — "+fmtFCFA(p.prix);
-    o.setAttribute("data-prix",p.prix); selP.appendChild(o);
+    var o=document.createElement("option"); o.value=p.nom; o.label=fmtFCFA(p.prix); dl.appendChild(o);
   });
-  $("hcQteWrap").style.display=service.depositaire?"block":"none"; $("hcActeQte").value="1";
+  $("hcQteWrap").style.display=service.depositaire?"block":"none"; $("hcActeQte").value="1"; $("hcActePresta").value="";
+}
+function onPrestaChange(){
+  var nom=$("hcActeService").value;
+  var service=(APP._hcServices||[]).filter(function(s){return s.nom===nom;})[0];
+  var presta=$("hcActePresta").value.trim();
+  var p=service?service.prestations.filter(function(x){return x.nom===presta;})[0]:null;
+  if(presta&&!p){ $("hcPuWrap").style.display="block"; }
+  else { $("hcPuWrap").style.display="none"; $("hcActePu").value=""; }
 }
 function ajouterActe(){
-  var nomService=$("hcActeService").value;
+  var nomService=$("hcActeService").value.trim();
   var service=(APP._hcServices||[]).filter(function(s){return s.nom===nomService;})[0];
-  var selP=$("hcActePresta"), presta=selP.value;
-  if(!nomService){ $("hcActeErr").textContent="Choisissez le service."; return; }
-  if(!presta){ $("hcActeErr").textContent="Choisissez la prestation."; return; }
+  var presta=$("hcActePresta").value.trim();
+  if(!nomService){ $("hcActeErr").textContent="Indiquez le service."; return; }
+  if(!presta){ $("hcActeErr").textContent="Indiquez la prestation."; return; }
   $("hcActeErr").textContent="";
-  var opt=selP.options[selP.selectedIndex], pu=parseFloat(opt.getAttribute("data-prix"))||0;
+  var p=service?service.prestations.filter(function(x){return x.nom===presta;})[0]:null;
+  var pu;
+  if(p){ pu=parseFloat(p.prix)||0; }
+  else {
+    pu=parseFloat($("hcActePu").value)||0;
+    if(!pu && !confirm("Prestation non listée et prix à 0 FCFA. Continuer ?")) return;
+  }
   var estDepot=service&&service.depositaire, qte=estDepot?(parseFloat($("hcActeQte").value)||1):1;
   if(!APP._hcPanier) APP._hcPanier=[];
   APP._hcPanier.push({ service:nomService, type:estDepot?"Médicament":"Prestation", designation:presta, qte:qte, pu:pu });
-  selP.value=""; $("hcActeQte").value="1"; renderPanier(); toast("✅ Ajouté");
+  $("hcActePresta").value=""; $("hcActePu").value=""; $("hcPuWrap").style.display="none"; $("hcActeQte").value="1";
+  renderPanier(); toast("✅ Ajouté");
 }
 function retirerLigne(i){ APP._hcPanier.splice(i,1); renderPanier(); }
 function renderPanier(){
@@ -645,20 +664,30 @@ function openForm(regimeKey, keepAdmin){
     var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; box.appendChild(lbl);
     var el;
     var useSelectRef=(f.list==="services" && APP.referentiels.services && APP.referentiels.services.length>0);
-    if(f.type==="select"||useSelectRef){
+    if(f.type==="select"){
       el=document.createElement("select");
       var empty=document.createElement("option"); empty.value=""; empty.textContent="— choisir —"; el.appendChild(empty);
-      var opts=useSelectRef?APP.referentiels.services:(f.options||[]);
-      opts.forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
-      if(useSelectRef && f.list==="services"){
-        el.addEventListener("change",function(){ majPrestationsSelon(el.value); });
-      }
+      (f.options||[]).forEach(function(o){ var opt=document.createElement("option"); opt.value=o; opt.textContent=o; el.appendChild(opt); });
     } else {
       el=document.createElement("input");
       el.type=(f.type==="datetime")?"datetime-local":(f.type==="number")?"number":(f.type==="date")?"date":(f.type==="tel")?"tel":"text";
       if(f.type==="date"&&f.today) el.value=today;
       if(f.type==="number"){ el.min="0"; el.inputMode="numeric"; }
-      if(f.list && APP.referentiels[f.list] && APP.referentiels[f.list].length){
+      // SERVICE recherchable
+      if(useSelectRef && f.list==="services"){
+        el.setAttribute("placeholder","Rechercher un service...");
+        var dlS="dl_services";
+        if(!document.getElementById(dlS)){
+          var dls=document.createElement("datalist"); dls.id=dlS;
+          APP.referentiels.services.forEach(function(v){ var o=document.createElement("option"); o.value=v; dls.appendChild(o); });
+          document.body.appendChild(dls);
+        }
+        el.setAttribute("list",dlS);
+        el.addEventListener("change",function(){ majPrestationsSelon(el.value); });
+        el.addEventListener("input",function(){ majPrestationsSelon(el.value); });
+      }
+      else if(f.list && APP.referentiels[f.list] && APP.referentiels[f.list].length){
+        if(f.list==="prestations") el.setAttribute("placeholder","Rechercher une prestation...");
         var dlId="dl_"+f.list;
         if(!document.getElementById(dlId)){
           var dl=document.createElement("datalist"); dl.id=dlId;
@@ -700,7 +729,7 @@ function majPrestationsSelon(service){
   var source=liste.length?liste:(APP.referentiels.prestations||[]);
   source.forEach(function(v){ var o=document.createElement("option"); o.value=v; dl.appendChild(o); });
   champ.setAttribute("list",dlId);
-  champ.value="";
+  if(champ._dernierService!==service){ champ.value=""; champ._dernierService=service; }
 }
 
 function computeMontant(){
