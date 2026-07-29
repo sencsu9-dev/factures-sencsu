@@ -905,8 +905,18 @@ function renderPanierCSU(){
        '<div style="display:flex;align-items:center;gap:6px">'+(mt?'<b>'+fmtFCFA(mt)+'</b>':'')+
        '<button class="btn small secondary" onclick="retirerActeCSU('+i+')">✕</button></div></div>';
   });
-  box.innerHTML=h; $("formPanierTotal").textContent=total>0?"TOTAL : "+fmtFCFA(total):"";
+  box.innerHTML=h;
+  var taux=_tauxCSUClient(APP.currentRegime);
+  var mtCSU=Math.round(total*taux), mtPatient=Math.round(total*(1-taux));
+  var tot=$("formPanierTotal");
+  if(total>0){
+    tot.innerHTML="TOTAL : "+fmtFCFA(total)+
+      '<div style="font-size:12px;font-weight:400;color:#555;margin-top:4px">'+
+      '🏥 Facturé à la CSU : <b style="color:var(--green)">'+fmtFCFA(mtCSU)+'</b>'+
+      (mtPatient>0?' · 👤 Part patient : <b style="color:#c0392b">'+fmtFCFA(mtPatient)+'</b>':'')+'</div>';
+  } else { tot.textContent=""; }
 }
+function _tauxCSUClient(regime){ if(regime==="NDONGO_DARA"||regime==="CLASSIQUE") return 0.8; return 1.0; }
 
 function majPrestationsSelon(service){
   var parService=(APP.referentiels&&APP.referentiels.parService)||{};
