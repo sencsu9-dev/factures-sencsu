@@ -1080,7 +1080,19 @@ function genererPDF(){
     .then(function(res){
       $("btnGenPDF").disabled=false; $("btnGenPDF").textContent="📄 Générer le PDF";
       if(res.error){ $("pdfErr").textContent=res.error; return; }
-      if(res.base64){
+      var filesB64=(res.files||[]).filter(function(f){ return f.base64; });
+      if(filesB64.length>1){
+        APP._pdfFiles=filesB64;
+        var html='<p style="font-size:13px;color:var(--green);margin-bottom:10px">✅ '+
+          filesB64.length+' fichiers générés. Touchez pour télécharger :</p>';
+        filesB64.forEach(function(f,i){
+          var libelle=/PAGE_DE_GARDE/i.test(f.filename)?"📄 Page de garde (portrait)"
+                     :/LISTE/i.test(f.filename)?"📋 Liste nominative (paysage)":"📎 "+f.filename;
+          html+='<button class="btn" style="margin-bottom:8px" onclick="telechargerPdfIndex('+i+')">'+libelle+'</button>';
+        });
+        $("pdfResult").style.display="block"; $("pdfResult").innerHTML=html;
+        toast("✅ "+filesB64.length+" fichiers prêts");
+      } else if(res.base64){
         telechargerBase64(res.base64, res.filename||"liste.pdf");
         $("pdfResult").style.display="block";
         toast("✅ PDF téléchargé !");
@@ -1090,6 +1102,11 @@ function genererPDF(){
       $("btnGenPDF").disabled=false; $("btnGenPDF").textContent="📄 Générer le PDF";
       $("pdfErr").textContent="Erreur : "+(e&&e.message?e.message:e);
     });
+}
+
+function telechargerPdfIndex(i){
+  var f=(APP._pdfFiles||[])[i];
+  if(f) telechargerBase64(f.base64, f.filename);
 }
 
 function telechargerBase64(base64, filename){
