@@ -739,8 +739,13 @@ function doLogout(){
 // ══════════════ ACCUEIL ══════════════
 function buildHomeGrid(){
   var grid=$("regimeGrid"); grid.innerHTML="";
-  Object.keys(APP.regimes).forEach(function(key){
-    var r=APP.regimes[key], card=document.createElement("div");
+  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","NDONGO_DARA","BSF","CEC"];
+  var exclus={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1};
+  var cles=ordreICP.filter(function(k){ return APP.regimes[k]; });
+  Object.keys(APP.regimes).forEach(function(k){ if(exclus[k]) return; if(cles.indexOf(k)<0) cles.push(k); });
+  cles.forEach(function(key){
+    var r=APP.regimes[key]; if(!r) return;
+    var card=document.createElement("div");
     card.className="card"; card.style.borderTopColor=r.couleur||"#1a7a4a";
     card.innerHTML='<div class="ic">'+(r.icone||"📋")+'</div><div class="t">'+r.titre+'</div>';
     card.onclick=function(){ openForm(key); };
