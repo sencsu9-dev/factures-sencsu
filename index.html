@@ -782,7 +782,7 @@ function openForm(regimeKey, keepAdmin){
 
   regime.fields.forEach(function(f){
     if(estChampActe(f)) return;
-    var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; box.appendChild(lbl);
+    var lbl=document.createElement("label"); lbl.textContent=f.label||f.name; if(f.req) lbl.className="req"; box.appendChild(lbl);
     var el=_creerChampCSU(f);
     if(keepAdmin && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){ el.value=oldValues[f.name]; }
     box.appendChild(el);
@@ -800,7 +800,7 @@ function openForm(regimeKey, keepAdmin){
     fAutres.forEach(function(f){
       var col=document.createElement("div");
       col.style.cssText=(f.list==="prestations")?"flex:1 1 100%;min-width:150px":"flex:1 1 80px;min-width:70px";
-      var lbl=document.createElement("label"); lbl.textContent=f.name; if(f.req) lbl.className="req"; lbl.style.cssText="font-size:12px";
+      var lbl=document.createElement("label"); lbl.textContent=f.label||f.name; if(f.req) lbl.className="req"; lbl.style.cssText="font-size:12px";
       col.appendChild(lbl); col.appendChild(_creerChampCSU(f)); ligne.appendChild(col);
     });
     var colBtn=document.createElement("div"); colBtn.style.cssText="flex:0 0 auto";
@@ -1049,7 +1049,11 @@ window.addEventListener("offline", function(){ $("offlineBanner").style.display=
 function showPDFScreen(){
   var sel=$("pdfRegime");
   sel.innerHTML='<option value="">— choisir —</option>';
-  Object.keys(APP.regimes).forEach(function(k){
+  var exclusICP={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1};
+  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","NDONGO_DARA","BSF","CEC"];
+  var cles=ordreICP.filter(function(k){ return APP.regimes[k]; });
+  Object.keys(APP.regimes).forEach(function(k){ if(exclusICP[k]) return; if(cles.indexOf(k)<0) cles.push(k); });
+  cles.forEach(function(k){
     var o=document.createElement("option"); o.value=k; o.textContent=APP.regimes[k].titre; sel.appendChild(o);
   });
   $("pdfMois").innerHTML='<option value="">— choisir un régime d\'abord —</option>';
