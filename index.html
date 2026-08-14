@@ -497,7 +497,8 @@ function onPrestaChange(){
   var service=(APP._hcServices||[]).filter(function(s){return s.nom===nom;})[0];
   var presta=$("hcActePresta").value.trim();
   var p=service?service.prestations.filter(function(x){return x.nom===presta;})[0]:null;
-  if(presta&&!p){ $("hcPuWrap").style.display="block"; }
+  var prixConnu=p?(parseFloat(p.prix)||0):0;
+  if(presta&&(!p||prixConnu<=0)){ $("hcPuWrap").style.display="block"; $("hcActePu").value=prixConnu>0?prixConnu:""; }
   else { $("hcPuWrap").style.display="none"; $("hcActePu").value=""; }
 }
 function ajouterActe(){
@@ -508,11 +509,12 @@ function ajouterActe(){
   if(!presta){ $("hcActeErr").textContent="Indiquez la prestation."; return; }
   $("hcActeErr").textContent="";
   var p=service?service.prestations.filter(function(x){return x.nom===presta;})[0]:null;
+  var prixConnu=p?(parseFloat(p.prix)||0):0;
   var pu;
-  if(p){ pu=parseFloat(p.prix)||0; }
+  if(p&&prixConnu>0){ pu=prixConnu; }
   else {
     pu=parseFloat($("hcActePu").value)||0;
-    if(!pu && !confirm("Prestation non listée et prix à 0 FCFA. Continuer ?")) return;
+    if(!pu && !confirm("Aucun prix saisi pour cette prestation (0 FCFA). Continuer ?")) return;
   }
   var estDepot=service&&service.depositaire, qte=estDepot?(parseFloat($("hcActeQte").value)||1):1;
   if(!APP._hcPanier) APP._hcPanier=[];
