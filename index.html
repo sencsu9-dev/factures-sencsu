@@ -783,6 +783,10 @@ function openForm(regimeKey, keepAdmin){
     var el=_creerChampCSU(f);
     if(keepAdmin && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){ el.value=oldValues[f.name]; }
     box.appendChild(el);
+    // Enfants < 5 ans : proposer la saisie de l'âge si la date de naissance est inconnue
+    if(f.name==="Date de naissance" && APP.currentRegime==="ENFANTS_5ANS"){
+      box.appendChild(_blocAgeEstime(el));
+    }
   });
 
   if(regimeAActes){
@@ -810,6 +814,58 @@ function openForm(regimeKey, keepAdmin){
   $("formActesZone").style.display=regimeAActes?"block":"none";
   $("acteCsuErr").textContent=""; renderPanierCSU();
   showScreen("screenForm");
+}
+
+function _blocAgeEstime(dateEl){
+  var wrap=document.createElement("div");
+  wrap.style.cssText="margin:6px 0 10px";
+  // Case à cocher
+  var chkLine=document.createElement("label");
+  chkLine.style.cssText="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;font-weight:400;cursor:pointer";
+  var chk=document.createElement("input"); chk.type="checkbox"; chk.style.cssText="width:auto;margin:0";
+  chkLine.appendChild(chk);
+  chkLine.appendChild(document.createTextNode("Je n'ai pas la date de naissance, saisir l'âge (en mois)"));
+  wrap.appendChild(chkLine);
+  // Zone âge (mois uniquement)
+  var zone=document.createElement("div");
+  zone.style.cssText="display:none;margin-top:8px";
+  zone.innerHTML=
+    '<label style="font-size:12px">Âge (en mois)</label>'+
+    '<input type="number" id="ageMois" min="0" max="59" inputmode="numeric" placeholder="ex. 27">';
+  wrap.appendChild(zone);
+  var info=document.createElement("div");
+  info.style.cssText="font-size:12px;color:var(--green);margin-top:6px;display:none";
+  wrap.appendChild(info);
+
+  function recalc(){
+    var champ=$("ageMois");
+    var vide=!champ || !champ.value;
+    var mois=parseInt(champ?champ.value:"",10);
+    if(vide){ info.style.display="none"; dateEl.value=""; return; }
+    if(isNaN(mois)||mois<0){ info.style.display="none"; dateEl.value=""; return; }
+    if(mois>=60){ info.style.color="#c0392b"; info.textContent="⛔ 60 mois (5 ans) ou plus : régime réservé aux moins de 5 ans."; info.style.display="block"; dateEl.value=""; return; }
+    // Estimer : aujourd'hui moins N mois, puis 1er jour du mois
+    var now=new Date();
+    var d=new Date(now.getFullYear(), now.getMonth()-mois, 1);
+    var mm=("0"+(d.getMonth()+1)).slice(-2), aaaa=d.getFullYear();
+    dateEl.value=aaaa+"-"+mm+"-01";   // format input date
+    info.style.color="var(--green)";
+    info.textContent="Date de naissance estimée : 01/"+mm+"/"+aaaa;
+    info.style.display="block";
+  }
+
+  chk.addEventListener("change",function(){
+    if(chk.checked){
+      zone.style.display="block";
+      dateEl.readOnly=true; dateEl.style.background="#f2f4f7";
+    } else {
+      zone.style.display="none"; info.style.display="none";
+      dateEl.readOnly=false; dateEl.style.background="";
+      dateEl.value="";
+    }
+  });
+  zone.addEventListener("input",recalc);
+  return wrap;
 }
 
 function _creerChampCSU(f){
