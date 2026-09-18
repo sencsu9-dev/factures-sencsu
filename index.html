@@ -786,10 +786,6 @@ function openForm(regimeKey, keepAdmin){
     var el=_creerChampCSU(f);
     if(keepAdmin && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){ el.value=oldValues[f.name]; }
     box.appendChild(el);
-    // Enfants < 5 ans : proposer la saisie de l'âge si la date de naissance est inconnue
-    if(f.name==="Date de naissance" && APP.currentRegime==="ENFANTS_5ANS"){
-      box.appendChild(_blocAgeEstime(el));
-    }
   });
 
   if(regimeAActes){
