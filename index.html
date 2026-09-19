@@ -803,11 +803,11 @@ function openForm(regimeKey, keepAdmin){
       var lbl=document.createElement("label"); lbl.textContent=f.label||f.name; if(f.req) lbl.className="req"; lbl.style.cssText="font-size:12px";
       col.appendChild(lbl); col.appendChild(_creerChampCSU(f)); ligne.appendChild(col);
     });
-    var colBtn=document.createElement("div"); colBtn.style.cssText="flex:0 0 auto";
-    var btnAdd=document.createElement("button"); btnAdd.className="btn"; btnAdd.type="button";
-    btnAdd.textContent="➕"; btnAdd.title="Ajouter"; btnAdd.style.cssText="padding:12px 18px;margin:0";
-    btnAdd.onclick=ajouterActeCSU; colBtn.appendChild(btnAdd); ligne.appendChild(colBtn);
     acteBox.appendChild(ligne);
+    // Bouton "Ajouter la prestation" en pleine largeur sous les champs
+    var btnAdd=document.createElement("button"); btnAdd.className="btn secondary"; btnAdd.type="button";
+    btnAdd.textContent="➕ Ajouter la prestation"; btnAdd.style.cssText="margin-top:8px";
+    btnAdd.onclick=ajouterActeCSU; acteBox.appendChild(btnAdd);
   }
 
   $("formActesZone").style.display=regimeAActes?"block":"none";
@@ -926,17 +926,26 @@ function _creerChampCSU(f){
   return el;
 }
 
-function ajouterActeCSU(){
-  var acteBox=$("formActeInputs"), acte={}, manq=[];
+// Collecte l'acte saisi dans les champs. Renvoie {acte, manq, vide}
+function _collecterActeCSU(){
+  var acteBox=$("formActeInputs"), acte={}, manq=[], rempli=false;
   (APP._csuActeFields||[]).forEach(function(f){
-    var el=acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]');
+    var el=acteBox?acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]'):null;
     var val=el?el.value.trim():""; acte[f.name]=val;
     if(f.req&&!val) manq.push(f.name);
+    // "rempli" si une prestation (ou un montant / qté / P.U.) est saisie ; un service seul ne suffit pas
+    if(val && (f.list==="prestations" || f.montant || f.qte || f.pu)) rempli=true;
   });
-  if(manq.length){ $("acteCsuErr").textContent="Champs manquants : "+manq.join(", "); return; }
+  return { acte:acte, manq:manq, vide:!rempli };
+}
+function ajouterActeCSU(){
+  var r=_collecterActeCSU();
+  if(r.vide){ $("acteCsuErr").textContent="Choisissez une prestation."; return; }
+  if(r.manq.length){ $("acteCsuErr").textContent="Champs manquants : "+r.manq.join(", "); return; }
   $("acteCsuErr").textContent="";
   if(!APP._csuPanier) APP._csuPanier=[];
-  APP._csuPanier.push(acte);
+  APP._csuPanier.push(r.acte);
+  var acteBox=$("formActeInputs");
   (APP._csuActeFields||[]).forEach(function(f){
     if(f.list==="services") return;   // garder le service sélectionné
     var el=acteBox.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]'); if(el) el.value="";
@@ -946,7 +955,7 @@ function ajouterActeCSU(){
 function retirerActeCSU(i){ APP._csuPanier.splice(i,1); renderPanierCSU(); }
 function renderPanierCSU(){
   var panier=APP._csuPanier||[], box=$("formPanier"); if(!box) return;
-  if(panier.length===0){ box.innerHTML='<p style="font-size:12px;color:#999;text-align:center">Aucune prestation ajoutée.</p>'; $("formPanierTotal").textContent=""; return; }
+  if(panier.length===0){ box.innerHTML='<p style="font-size:12px;color:#999;text-align:center;line-height:1.5">Pour <b>une seule prestation</b> : choisissez-la et cliquez « Valider le patient ».<br>Pour <b>plusieurs</b> : cliquez « Ajouter la prestation » à chaque fois.</p>'; $("formPanierTotal").textContent=""; return; }
   var fService=(APP._csuActeFields||[]).filter(function(f){return f.list==="services";})[0];
   var fPresta=(APP._csuActeFields||[]).filter(function(f){return f.list==="prestations";})[0];
   var fMontant=(APP._csuActeFields||[]).filter(function(f){return f.montant;})[0];
@@ -1025,7 +1034,13 @@ function saveEntry(closeAfter){
   var actes;
   if(regimeAActes){
     actes=(APP._csuPanier||[]).slice();
-    if(actes.length===0){ $("formErr").textContent="Ajoutez au moins une prestation."; return; }
+    // Prendre en compte une prestation saisie mais non ajoutée au panier (panier vide OU non)
+    var rActe=_collecterActeCSU();
+    if(!rActe.vide){
+      if(rActe.manq.length){ $("formErr").textContent="Prestation incomplète : "+rActe.manq.join(", "); return; }
+      actes.push(rActe.acte);
+    }
+    if(actes.length===0){ $("formErr").textContent="Choisissez au moins une prestation."; return; }
     actes=actes.map(function(a){
       var copie={};
       (APP._csuActeFields||[]).forEach(function(f){
