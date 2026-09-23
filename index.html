@@ -754,9 +754,11 @@ function buildHomeGrid(){
 }
 
 // ══════════════ FORMULAIRE (identique a l'app Apps Script) ══════════════
-function calculerAge(dateStr){
+function calculerAge(dateStr, dateRef){
   var n=new Date(dateStr); if(isNaN(n)) return null;
-  var a=new Date(), age=a.getFullYear()-n.getFullYear(), m=a.getMonth()-n.getMonth();
+  var a=dateRef?new Date(dateRef):new Date();
+  if(isNaN(a)) a=new Date();
+  var age=a.getFullYear()-n.getFullYear(), m=a.getMonth()-n.getMonth();
   if(m<0||(m===0&&a.getDate()<n.getDate())) age--;
   return age;
 }
@@ -1009,12 +1011,13 @@ function saveEntry(closeAfter){
   function estChampActe(f){ return f.list==="services"||f.list==="prestations"||f.qte||f.pu||f.montant; }
   var regimeAActes=regime.fields.some(estChampActe);
 
-  var patient={};
+  var patient={}, datePrise=null;
   regime.fields.forEach(function(f){
     if(estChampActe(f)) return;
     var el=box.querySelector('[data-field="'+f.name.replace(/"/g,'\\"')+'"]');
     var val=el?el.value.trim():"";
     if(f.name==="Date de naissance" && val) dateNaissance=val;
+    if(/date de prise en charge/i.test(f.name) && val) datePrise=val;
     if((f.type==="date"||f.type==="datetime") && val){
       var d=new Date(val);
       if(!isNaN(d)){ var dd=("0"+d.getDate()).slice(-2), mm=("0"+(d.getMonth()+1)).slice(-2);
@@ -1026,8 +1029,9 @@ function saveEntry(closeAfter){
   });
   if(missing.length){ $("formErr").textContent="Champs obligatoires manquants : "+missing.join(", "); return; }
   if(dateNaissance){
-    var age=calculerAge(dateNaissance);
-    if(APP.currentRegime==="ENFANTS_5ANS" && age>=5){ $("formErr").textContent="⛔ Cet enfant a "+age+" ans (régime réservé aux moins de 5 ans)."; return; }
+    // Âge calculé à la DATE DE PRISE EN CHARGE (l'âge au moment des soins), sinon aujourd'hui
+    var age=calculerAge(dateNaissance, datePrise);
+    if(APP.currentRegime==="ENFANTS_5ANS" && age>=5){ $("formErr").textContent="⛔ Cet enfant avait "+age+" ans à la date de prise en charge (régime réservé aux moins de 5 ans)."; return; }
     if(APP.currentRegime==="SESAME" && age<60){ $("formErr").textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; }
   }
 
