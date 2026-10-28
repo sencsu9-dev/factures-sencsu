@@ -52,6 +52,7 @@
   .card:active { transform:scale(.97); }
   .card .ic { font-size:30px; }
   .card .t { font-size:12px; font-weight:700; margin-top:6px; line-height:1.3; }
+  .card .ctaux { font-size:10px; font-weight:600; margin-top:4px; color:var(--green); background:rgba(26,122,74,.1); border-radius:10px; padding:2px 8px; display:inline-block; }
   .syncbar { background:#fff; border-radius:10px; padding:12px 14px; margin-top:4px;
     display:flex; align-items:center; justify-content:space-between; box-shadow:0 1px 4px rgba(0,0,0,.06); font-size:13px; }
   .syncbar.pending { border-left:4px solid var(--orange); }
@@ -77,6 +78,29 @@
 @keyframes ldspin{to{transform:rotate(360deg)}}
 .loader-msg{font-size:14px;color:#1a2b22;font-weight:600}
 .loader-sub{font-size:12px;color:#5b6b63;margin-top:-6px}
+/* Régime contributif — formulaire fluide */
+#contribBody{padding:0 2px}
+.ctb-card{background:#fff;border:1px solid #e7ecf0;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(16,40,34,.05)}
+.ctb-label{font-size:12px;font-weight:700;color:#5a6b73;letter-spacing:.02em;margin-bottom:8px}
+.ctb-sec{font-size:12px;font-weight:800;color:#5a6b73;letter-spacing:.04em;margin:4px 0 10px}
+.ctb-presta{background:#fff;border:1px solid #e7ecf0;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(16,40,34,.05)}
+.ctb-parts{background:#f4faf6;border:1px solid #cfe3d6;border-radius:12px;padding:12px 16px;margin-top:10px}
+.ctb-part{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#555;padding:3px 0}
+.ctb-part b{font-size:16px}
+#contribBody input{padding:11px 13px;border:1px solid #d4dde2;border-radius:9px;font-size:15px;background:#fff}
+#contribBody input:focus{outline:2px solid var(--green);border-color:var(--green)}
+.ctb-photo-row{display:flex;align-items:center;gap:12px}
+.ctb-photo-txt{flex:1;min-width:0}
+.ctb-photo-t{font-size:14px;font-weight:700}
+.ctb-photo-sub{font-size:12px;color:#999;margin-top:2px}
+.ctb-photo-ok{font-size:12px;color:#1a7a4a;font-weight:700;margin-top:2px}
+.ctb-cam{width:46px;height:46px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:20px;flex:0 0 auto;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0}
+.ctb-cam.done{background:#e8f5e9;color:#1a7a4a;border:1px solid #bfe3cc}
+.ctb-cam2{width:46px;height:46px;border-radius:12px;border:1px solid #d4dde2;background:#fff;color:#1a7a4a;font-size:17px;flex:0 0 auto;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0}
+.ctb-photo-del{background:none;border:none;color:#c0392b;font-size:12px;margin-top:8px;cursor:pointer;padding:0}
+.ctb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ctb-chip{font-size:12px;background:#f1f4f6;border-radius:20px;padding:4px 10px;color:#444}
+.ctb-chip b{cursor:pointer;color:#c0392b;margin-left:4px}
 </style>
 </head>
 <body>
@@ -88,7 +112,21 @@
     <h1>Factures SEN-CSU</h1>
     <div class="sub" id="userInfo"></div>
   </div>
-  <div class="badge-sync badge-ok" id="syncBadge">✓</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="notifBell" onclick="ouvrirNotifs()" aria-label="Notifications" style="position:relative;background:rgba(255,255,255,.15);border:none;color:#fff;width:38px;height:38px;border-radius:10px;font-size:18px;cursor:pointer;display:none">🔔<span id="notifCount" style="position:absolute;top:-5px;right:-5px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;line-height:17px;border-radius:9px;padding:0 3px;display:none;box-sizing:border-box"></span></button>
+    <div class="badge-sync badge-ok" id="syncBadge">✓</div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS (panneau) -->
+<div id="notifPanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999" onclick="if(event.target===this)fermerNotifs()">
+  <div style="position:absolute;top:0;right:0;bottom:0;width:min(440px,94%);background:#f5f6f7;box-shadow:-4px 0 22px rgba(0,0,0,.22);display:flex;flex-direction:column">
+    <div style="padding:14px 16px;background:var(--green);color:#fff;display:flex;justify-content:space-between;align-items:center">
+      <b style="font-size:15px">🔔 Notifications</b>
+      <button onclick="fermerNotifs()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="notifList" style="flex:1;overflow:auto;padding:12px"></div>
+  </div>
 </div>
 
 <!-- LOGIN -->
@@ -136,8 +174,28 @@
   <div id="icpModeCSU" style="display:none">
     <div class="form-head"><button class="back" onclick="retourModeChoice()">←</button>
       <div class="form-title">🏥 Bénéficiaire CSU</div></div>
-    <div class="grid" id="regimeGrid"></div>
-    <button class="btn secondary" onclick="showPDFScreen()" style="margin-top:14px">📄 Télécharger ma liste (PDF)</button>
+    <!-- Onglets -->
+    <div style="display:flex;gap:8px;margin:4px 0 14px">
+      <button class="btn" id="tabFacturation" onclick="csuTab('fact')" style="flex:1">🧾 Facturation</button>
+      <button class="btn secondary" id="tabMesFactures" onclick="csuTab('mes')" style="flex:1">📋 Mes factures</button>
+    </div>
+    <!-- Onglet Facturation -->
+    <div id="csuPanelFact">
+      <div class="grid" id="regimeGrid"></div>
+      <button class="btn secondary" onclick="showPDFScreen()" style="margin-top:14px">📄 Télécharger ma facture (PDF)</button>
+    </div>
+    <!-- Onglet Mes factures -->
+    <div id="csuPanelMes" style="display:none">
+      <label>Régime</label>
+      <select id="mfRegime" onchange="mfCharger()"></select>
+      <label style="margin-top:8px">Année</label>
+      <select id="mfAnnee" onchange="mfCharger()"></select>
+      <label style="margin-top:8px">Mois</label>
+      <select id="mfMoisFiltre" onchange="mfCharger()"></select>
+      <div id="mfBrouillons" style="margin-top:12px"></div>
+      <div id="mfMsg" style="font-size:13px;color:#777;margin-top:10px"></div>
+      <div id="mfMois" style="margin-top:10px"></div>
+    </div>
   </div>
 
   <!-- Mode Hors CSU -->
@@ -267,6 +325,7 @@
       <div id="formPanierTotal" style="text-align:right;font-size:15px;font-weight:700;color:var(--green);margin-top:6px"></div>
     </div>
     <button class="btn" id="btnValiderPatient" onclick="saveEntry(true)" style="margin-top:12px">💾 Valider le patient</button>
+    <button class="btn secondary" id="btnBrouillon" onclick="_enregistrerBrouillon()" style="margin-top:8px">📝 Enregistrer comme brouillon</button>
     <div class="err" id="formErr"></div>
   </div>
 </div>
@@ -275,7 +334,7 @@
 <div class="screen" id="screenPDF">
   <div class="form-head">
     <button class="back" onclick="showScreen('screenHome')">←</button>
-    <div class="form-title">📄 Télécharger ma liste</div>
+    <div class="form-title">📄 Télécharger ma facture</div>
   </div>
   <div class="form-box">
     <label>Régime</label>
@@ -293,6 +352,24 @@
   </div>
 </div>
 
+<!-- MES FACTURES — LISTE DES BÉNÉFICIAIRES D'UN MOIS -->
+<div class="screen" id="screenFactureMois">
+  <div class="form-head">
+    <button class="back" onclick="showScreen('screenHome')">←</button>
+    <div class="form-title" id="fmTitre">📋 Factures du mois</div>
+  </div>
+  <div class="form-box"><div id="fmBody"></div></div>
+</div>
+
+<!-- MES FACTURES — CONSULTER LES PRESTATIONS D'UN BÉNÉFICIAIRE -->
+<div class="screen" id="screenFactureConsult">
+  <div class="form-head">
+    <button class="back" id="fcBack" onclick="_mfRetourMois()">←</button>
+    <div class="form-title" id="fcTitre">👤 Prestations</div>
+  </div>
+  <div class="form-box"><div id="fcBody"></div></div>
+</div>
+
 <!-- DOSSIER MÉDICAL DU PATIENT -->
 <div class="screen" id="screenDossier">
   <div class="form-head">
@@ -302,6 +379,15 @@
   <div class="form-box">
     <div id="dossierBody"></div>
   </div>
+</div>
+
+<!-- ════ RÉGIME CONTRIBUTIF — formulaire fluide (une seule page) ════ -->
+<div class="screen" id="screenContrib">
+  <div class="form-head">
+    <button class="back" onclick="showScreen('screenHome')">←</button>
+    <div class="form-title" id="contribTitle">💳 Régime contributif</div>
+  </div>
+  <div id="contribBody"></div>
 </div>
 
 <div id="toast"></div>
@@ -2678,6 +2764,7 @@ function choisirMode(mode){
   $("icpModeChoice").style.display="none";
   $("icpModeCSU").style.display = (mode==="csu")?"block":"none";
   $("icpModeHC").style.display = (mode==="csu")?"none":"block";
+  if(mode==="csu"){ try{ csuTab("fact"); }catch(e){} }
   // Empiler un état pour que le bouton retour revienne au choix de mode
   _pushEtat({ type:"mode", mode:mode });
 }
@@ -2962,15 +3049,24 @@ function apiCallJsonp(params) {
 
 // Appel POST : fiable pour tous les payloads (petits et gros fichiers Excel base64).
 // text/plain evite le preflight CORS ; Apps Script lit e.postData.contents.
+// Timeout (AbortController) : si Apps Script laisse la requête en attente,
+// on abandonne au bout de 25 s -> apiCall bascule automatiquement sur le JSONP.
 function apiCallPost(params) {
+  var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  var to = ctrl ? setTimeout(function(){ try { ctrl.abort(); } catch(e){} }, 25000) : null;
   return fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(params),
-    redirect: "follow"
+    redirect: "follow",
+    signal: ctrl ? ctrl.signal : undefined
   }).then(function(r){
+    if (to) clearTimeout(to);
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
+  }, function(err){
+    if (to) clearTimeout(to);
+    throw err;
   });
 }
 
@@ -3018,7 +3114,46 @@ function applyBootstrap(res){
   $("userInfo").textContent=APP.user.email+" — "+APP.user.role+(APP.user.poste?" ("+APP.user.poste+")":"");
   buildHomeGrid(); updateSyncUI(); showScreen("screenHome"); retourModeChoice(); trySync(false);
   try{ _flushDossiers(); }catch(e){}
+  try{ _chargerNotifs(); }catch(e){}
 }
+
+// ══════════════ NOTIFICATIONS ══════════════
+function _chargerNotifs(auto){
+  if(!APP.user || APP.user.role!=="ICP") return;   // notifications destinées à l'ICP
+  if(!navigator.onLine || !APP.auth) return;
+  apiCall({ action:"notifs", email:APP.auth.email, pin:APP.auth.pin }).then(function(res){
+    if(!res || res.error) return;
+    APP._notifs=res.notifs||[]; _majBadgeNotif(res.nonLus||0);
+    if(auto!==false && (res.nonLus||0)>0) ouvrirNotifs();   // à la connexion, on affiche d'office les non-lues
+  }).catch(function(){});
+}
+function _majBadgeNotif(n){
+  var bell=$("notifBell"), c=$("notifCount"); if(!bell) return;
+  bell.style.display="";
+  if(c){ if(n>0){ c.textContent=(n>99?"99+":String(n)); c.style.display=""; } else c.style.display="none"; }
+}
+function ouvrirNotifs(){
+  var p=$("notifPanel"), list=$("notifList"); if(!p||!list) return;
+  var ns=APP._notifs||[];
+  if(!ns.length){ list.innerHTML='<div style="color:#888;font-size:13px;text-align:center;padding:30px 10px">Aucune notification pour le moment.</div>'; }
+  else {
+    list.innerHTML=ns.map(function(n){
+      var col=(n.statut==="Validé")?"#1a7a4a":(n.statut==="Rejeté")?"#c0392b":"#b9770e";
+      var bg=n.lu?"#ffffff":"#f0f8f3";
+      return '<div style="border:1px solid #e3e6e8;border-left:4px solid '+col+';background:'+bg+';border-radius:9px;padding:11px 13px;margin-bottom:9px">'+
+        '<div style="font-size:13px;color:#2c3338;line-height:1.4">'+(n.lu?'':'<span style="color:#c0392b;font-weight:800">● </span>')+_ctbEsc(n.message)+'</div>'+
+        '<div style="font-size:11px;color:#9aa4ab;margin-top:5px">'+_ctbEsc(n.date||"")+'</div></div>';
+    }).join("");
+  }
+  p.style.display="block";
+  // Marquer les non-lues comme lues
+  var unread=ns.filter(function(n){return !n.lu;}).map(function(n){return n.id;});
+  if(unread.length && navigator.onLine && APP.auth){
+    apiCall({ action:"notifs_lire", email:APP.auth.email, pin:APP.auth.pin, ids:JSON.stringify(unread) })
+      .then(function(){ ns.forEach(function(n){ n.lu=true; }); _majBadgeNotif(0); }).catch(function(){});
+  }
+}
+function fermerNotifs(){ var p=$("notifPanel"); if(p) p.style.display="none"; }
 
 function showMdpScreen(){
   $("mdpAncien").value=""; $("mdpNouveau").value=""; $("mdpConfirm").value=""; $("mdpErr").textContent="";
@@ -3044,23 +3179,25 @@ function changerMotDePasse(){
 function doLogout(){
   var q=getQueue();
   if(q.length>0 && !confirm(q.length+" dossier(s) non synchronisé(s). Se déconnecter quand même ?")) return;
-  localStorage.removeItem(LS_AUTH); APP.auth=null; APP.user=null;
+  localStorage.removeItem(LS_AUTH); APP.auth=null; APP.user=null; APP._notifs=[];
+  var nb=$("notifBell"); if(nb) nb.style.display="none"; fermerNotifs();
   $("topbar").style.display="none"; showScreen("screenLogin");
 }
 
 // ══════════════ ACCUEIL ══════════════
 function buildHomeGrid(){
   var grid=$("regimeGrid"); grid.innerHTML="";
-  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","NDONGO_DARA","BSF","CEC"];
-  var exclus={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1};
+  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","BSF"];
+  var exclus={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1,NDONGO_DARA:1,CEC:1};
   var cles=ordreICP.filter(function(k){ return APP.regimes[k]; });
   Object.keys(APP.regimes).forEach(function(k){ if(exclus[k]) return; if(cles.indexOf(k)<0) cles.push(k); });
   cles.forEach(function(key){
     var r=APP.regimes[key]; if(!r) return;
     var card=document.createElement("div");
     card.className="card"; card.style.borderTopColor=r.couleur||"#1a7a4a";
-    card.innerHTML='<div class="ic">'+(r.icone||"📋")+'</div><div class="t">'+r.titre+'</div>';
-    card.onclick=function(){ openForm(key); };
+    var tauxLbl=(key==="ENFANTS_5ANS") ? "Forfait 1 400 F" : ("Taux CSU : "+Math.round(_tauxCSUClient(key)*100)+"%");
+    card.innerHTML='<div class="ic">'+(r.icone||"📋")+'</div><div class="t">'+r.titre+'</div><div class="ctaux">'+tauxLbl+'</div>';
+    card.onclick=(key==="CLASSIQUE"||key==="BSF"||key==="SESAME"||key==="ENFANTS_5ANS") ? (function(k){ return function(){ openContributif(k); }; })(key) : function(){ openForm(key); };
     grid.appendChild(card);
   });
 }
@@ -3075,7 +3212,9 @@ function calculerAge(dateStr, dateRef){
   return age;
 }
 
-function openForm(regimeKey, keepAdmin){
+function openForm(regimeKey, keepAdmin, edition, sansAssistant){
+  APP._editMode=!!edition;   // mode « Modifier » : pas d'assistant, pas de dossier
+  APP._brouillonEnCours=null;  // réinitialisé à chaque ouverture (reprise de brouillon le remet après)
   APP.currentRegime=regimeKey; var regime=APP.regimes[regimeKey];
   $("formTitle").textContent=(regime.icone||"")+" "+regime.titre; $("formErr").textContent="";
   var box=$("formFields"), oldValues={};
@@ -3102,6 +3241,9 @@ function openForm(regimeKey, keepAdmin){
     if(keepAdmin && oldValues[f.name]!==undefined && !/diagnostic|date de prise/i.test(f.name)){ el.value=oldValues[f.name]; }
     box.appendChild(el);
   });
+
+  // Moins de 5 ans : pièce d'identification (extrait…) facultative, en bas des infos -> dossier
+  if(regimeKey==="ENFANTS_5ANS" && !edition){ box.appendChild(_blocExtraitEnfant()); }
 
   if(regimeAActes){
     var fService=APP._csuActeFields.filter(function(f){return f.list==="services";})[0];
@@ -3144,9 +3286,10 @@ function openForm(regimeKey, keepAdmin){
   $("formActesZone").style.display=regimeAActes?"block":"none";
   $("acteCsuErr").textContent=""; renderPanierCSU();
 
-  // Assistant par étapes (régimes à vérification de couverture) ou affichage normal
+  // Assistant par étapes (régimes à vérification de couverture) ou affichage normal.
+  // En mode « Modifier », on n'affiche NI l'assistant NI le dossier : juste le formulaire.
   _wizDemonter();
-  if(_estWizard(regimeKey)){
+  if(!edition && !sansAssistant && _estWizard(regimeKey)){
     APP._regimeAActes=regimeAActes;
     if(regimeKey==="SESAME"){ APP._cni_recto=""; APP._cni_verso=""; }
     else { APP._verifStatut=""; APP._verifMotif=""; APP._benef=null; }
@@ -3154,6 +3297,8 @@ function openForm(regimeKey, keepAdmin){
     // Hors ligne : ni vérification ni scan possibles -> saisie directe des infos bénéficiaire
     if(!navigator.onLine){ APP._verifStatut="manuel"; _wizEtape("infos"); }
   }
+  // Bouton brouillon : masqué en mode Modifier
+  var bb=$("btnBrouillon"); if(bb) bb.style.display=edition?"none":"";
 
   showScreen("screenForm");
 }
@@ -3223,6 +3368,7 @@ function _wizEtape(e){
   aff("wizMedHdr", e==="medical" && actes);
   var fz=$("formActesZone"); if(fz) fz.style.display=(e==="medical" && actes)?"block":"none";
   var bv=$("btnValiderPatient"); if(bv) bv.style.display=(e==="medical" || (e==="infos" && !actes))?"":"none";
+  var bb=$("btnBrouillon"); if(bb) bb.style.display=(!APP._editMode && (e==="infos" || e==="medical"))?"":"none";
   try{ window.scrollTo(0,0); }catch(_e){}
 }
 
@@ -3712,6 +3858,29 @@ function renderPanierCSU(){
   } else { tot.textContent=""; }
 }
 function _tauxCSUClient(regime){ if(regime==="NDONGO_DARA"||regime==="CLASSIQUE") return 0.8; return 1.0; }
+// Regroupe une clé régime dans son groupe de formulaire fluide (clé canonique)
+function _grpRegime(key){
+  if(key==="CLASSIQUE"||key==="NDONGO_DARA") return "CLASSIQUE";
+  if(key==="BSF"||key==="CEC") return "BSF";
+  if(key==="SESAME") return "SESAME";
+  if(key==="ENFANTS_5ANS") return "ENFANTS_5ANS";
+  return key;
+}
+// Déduit le groupe de formulaire à partir du libellé régime renvoyé par scancarte
+function _regimeDepuisLibelle(lib){
+  var s=(lib||"").toString().toLowerCase();
+  if(!s) return "";
+  if(/sésame|sesame/.test(s)) return "SESAME";
+  if(/moins de 5|moins de cinq|enfant/.test(s)) return "ENFANTS_5ANS";
+  if(/bsf|cec|bourse|sécurité familiale|securite familiale|égalité|egalite|chances/.test(s)) return "BSF";
+  if(/classique|contributif|ndongo|dara|élève|eleve/.test(s)) return "CLASSIQUE";
+  return "";
+}
+function _grpNom(grp){
+  var r=APP.regimes&&APP.regimes[grp];
+  if(r&&r.titre) return r.titre;
+  return ({CLASSIQUE:"Régime contributif",BSF:"BSF / CEC",SESAME:"Plan Sésame",ENFANTS_5ANS:"Enfants de moins de 5 ans"})[grp]||grp;
+}
 
 function majPrestationsSelon(service){
   var parService=(APP.referentiels&&APP.referentiels.parService)||{};
@@ -3736,8 +3905,8 @@ function computeMontant(){
 }
 
 function saveEntry(closeAfter){
-  // Blocage facturation : régimes à vérification de couverture
-  if(REGIMES_VERIF[APP.currentRegime]){
+  // Blocage facturation : régimes à vérification de couverture (sauf en mode Modifier)
+  if(!APP._editMode && REGIMES_VERIF[APP.currentRegime]){
     if(APP._verifStatut==="invalide"){ $("formErr").textContent="⛔ Facturation bloquée : "+(APP._verifMotif||"carte non valide."); return; }
     if(APP._verifStatut!=="valide" && APP._verifStatut!=="manuel"){ $("formErr").textContent="Vérifiez d'abord le code d'immatriculation (ou choisissez « Saisir les infos »)."; return; }
   }
@@ -3795,6 +3964,10 @@ function saveEntry(closeAfter){
   } else { actes=[{}]; }
 
   var posteSel=$("fieldPoste"), poste=posteSel?posteSel.value:APP.user.poste;
+
+  // ── Mode MODIFIER : remplacer la facture existante (pas de file, pas de dossier) ──
+  if(APP._editMode){ _enregistrerModification(patient, actes, poste); return; }
+
   var q=getQueue();
   actes.forEach(function(acte){
     var data={};
@@ -3803,6 +3976,7 @@ function saveEntry(closeAfter){
     q.push({id:uid(), regime:APP.currentRegime, poste:poste, data:data});
   });
   setQueue(q); updateSyncUI(); $("formErr").textContent="";
+  if(APP._brouillonEnCours){ _supprimerBrouillon(APP._brouillonEnCours); APP._brouillonEnCours=null; }
   toast("💾 "+actes.length+" prestation(s) enregistrée(s) ("+q.length+" en attente)");
   trySync(false);
   // Régimes à dossier médical : on enchaîne sur la constitution du dossier.
@@ -3870,8 +4044,8 @@ window.addEventListener("offline", function(){ $("offlineBanner").style.display=
 function showPDFScreen(){
   var sel=$("pdfRegime");
   sel.innerHTML='<option value="">— choisir —</option>';
-  var exclusICP={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1};
-  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","NDONGO_DARA","BSF","CEC"];
+  var exclusICP={CESARIENNES:1,DIALYSE_PERITONEALE:1,HEMODIALYSE:1,NDONGO_DARA:1,CEC:1};
+  var ordreICP=["ENFANTS_5ANS","CLASSIQUE","SESAME","BSF"];
   var cles=ordreICP.filter(function(k){ return APP.regimes[k]; });
   Object.keys(APP.regimes).forEach(function(k){ if(exclusICP[k]) return; if(cles.indexOf(k)<0) cles.push(k); });
   cles.forEach(function(k){
@@ -4349,7 +4523,13 @@ function _afficherDossier(ctx){
   } else if(justif==="carte"){
     body.appendChild(_blocPiece("carteRecto","🪪 Carte de couverture (physique, recto)","Photographiez la carte physique (recto) sur place — l'import n'est pas autorisé.", true, true));
   }
-  // (Enfants <5 ans : pas de justificatif physique)
+  // Moins de 5 ans : pièce d'identification (facultative), saisie à l'étape infos
+  if(ctx.regime==="ENFANTS_5ANS"){
+    var pi=document.createElement("div"); pi.style.cssText="border:1px solid #e5e5e5;border-radius:10px;padding:10px;margin-bottom:10px";
+    if(APP._dossier_extrait){ pi.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:4px">🧾 Pièce d\'identification</div><div style="font-size:12px;color:var(--green)">✓ Jointe</div>'+_vignette(APP._dossier_extrait); }
+    else { pi.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:4px">🧾 Pièce d\'identification</div><div style="font-size:12px;color:#999">Aucune (facultatif)</div>'; }
+    body.appendChild(pi);
+  }
 
   var err=document.createElement("div"); err.id="dossierErr"; err.className="err"; body.appendChild(err);
   var bFin=document.createElement("button"); bFin.className="btn"; bFin.type="button";
@@ -4370,6 +4550,25 @@ function _afficherDossier(ctx){
     if(APP._dossier_carteImg){ var d1=document.createElement("div"); d1.innerHTML='<div style="font-size:12px;color:#444;margin-top:4px">Carte de couverture ✓</div>'+_vignette(APP._dossier_carteImg); box.appendChild(d1); }
     var d2=document.createElement("div"); d2.innerHTML='<div style="font-size:12px;color:#444;margin-top:8px">Attestation de soins ✓</div>'+_vignette(APP._dossier_attImg); box.appendChild(d2);
   }).catch(function(){ var box=$("dosDocPreview"); if(box) box.textContent="⚠️ Impossible de générer les aperçus (ils seront régénérés)."; });
+}
+
+// Bloc « pièce d'identification » (moins de 5 ans) — facultatif, ajouté au dossier.
+function _blocExtraitEnfant(){
+  APP._dossier_extrait="";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="border:1px dashed #cfe3d6;background:#f7fbf8;border-radius:10px;padding:10px;margin-top:12px";
+  wrap.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:2px">🧾 Pièce d\'identification <span style="color:#999;font-weight:400">(facultatif)</span></div>'+
+                 '<div style="font-size:12px;color:#777;margin-bottom:8px">Extrait de naissance, carnet, PEV… — une photo ou un fichier image. Sera ajoutée au dossier du patient.</div>';
+  var bCam=document.createElement("button"); bCam.type="button"; bCam.className="btn secondary"; bCam.textContent="📷 Photographier"; bCam.style.cssText="width:100%";
+  var bImp=document.createElement("button"); bImp.type="button"; bImp.className="btn secondary"; bImp.textContent="🖼️ Joindre un fichier"; bImp.style.cssText="width:100%;margin-top:6px";
+  var fin=document.createElement("input"); fin.type="file"; fin.accept="image/*"; fin.style.display="none";
+  var prev=document.createElement("div");
+  function setImg(b64){ APP._dossier_extrait=b64; prev.innerHTML='<div style="font-size:12px;color:var(--green);margin-top:6px">✓ Pièce ajoutée</div>'+_vignette(b64); }
+  bCam.onclick=function(){ _cameraUneImage({ titre:"Pièce d'identification" }, function(b64){ setImg(b64); }); };
+  bImp.onclick=function(){ fin.click(); };
+  fin.addEventListener("change", function(){ var f=fin.files&&fin.files[0]; if(!f) return; _imageVersBase64(f,1600,function(b64){ setImg(b64); fin.value=""; }); });
+  wrap.appendChild(bCam); wrap.appendChild(bImp); wrap.appendChild(fin); wrap.appendChild(prev);
+  return wrap;
 }
 
 // Bloc tickets : un patient peut avoir PLUSIEURS tickets (photo ou import).
@@ -4487,6 +4686,7 @@ function _terminerDossier(){
   err.textContent="Enregistrement du dossier…";
   Promise.all([pCarte, pAtt]).then(function(r){
     var images={ carte:r[0]||"", attestation:r[1]||"", tickets:(APP._dossier_tickets||[]).slice(),
+                 extrait:(ctx.regime==="ENFANTS_5ANS"?(APP._dossier_extrait||""):""),
                  carteRecto:APP._dossier_carteRecto||"", cniRecto:(ctx.regime==="SESAME"?APP._cni_recto:"")||"",
                  cniVerso:(ctx.regime==="SESAME"?APP._cni_verso:"")||"" };
     var d={ id:ctx.id, regime:ctx.regime, poste:ctx.poste, patient:ctx.patient, attInfo:ctx.attInfo, images:images, cree:Date.now() };
@@ -4506,7 +4706,7 @@ function _terminerDossier(){
 }
 
 function _finDossier(ctx){
-  APP._dossierCtx=null; APP._dossier_tickets=[]; APP._dossier_carteRecto="";
+  APP._dossierCtx=null; APP._dossier_tickets=[]; APP._dossier_carteRecto=""; APP._dossier_extrait="";
   APP._dossier_carteImg=undefined; APP._dossier_attImg="";
   if(ctx.closeAfter) showScreen("screenHome"); else openForm(ctx.regime, true);
 }
@@ -4531,6 +4731,663 @@ function _envoyerDossier(d){
 }
 
 var _flushing=false;
+// ══════════════════════════════════════════════════════════════════════════
+// MES FACTURES — onglets, liste des mois, bénéficiaires par date, consulter
+// ══════════════════════════════════════════════════════════════════════════
+function csuTab(which){
+  var fact=(which!=="mes");
+  var pf=$("csuPanelFact"), pm=$("csuPanelMes");
+  if(pf) pf.style.display=fact?"":"none";
+  if(pm) pm.style.display=fact?"none":"";
+  var tf=$("tabFacturation"), tm=$("tabMesFactures");
+  if(tf) tf.className="btn"+(fact?"":" secondary");
+  if(tm) tm.className="btn"+(fact?" secondary":"");
+  if(!fact){ if(!APP._mfInit){ mfInit(); APP._mfInit=true; } var mb=$("mfBrouillons"); if(mb) mb.innerHTML=""; mfCharger(); }
+}
+
+function mfInit(){
+  var selR=$("mfRegime"); if(!selR) return; selR.innerHTML="";
+  var ordre=["ENFANTS_5ANS","CLASSIQUE","SESAME","BSF"];
+  var cles=ordre.filter(function(k){ return APP.regimes[k]; });
+  Object.keys(APP.regimes||{}).forEach(function(k){ if(cles.indexOf(k)<0 && !/CESAR|DIALYSE|HEMO|NDONGO_DARA|CEC/.test(k)) cles.push(k); });
+  cles.forEach(function(k){ var o=document.createElement("option"); o.value=k; o.textContent=(APP.regimes[k]&&APP.regimes[k].titre)||k; selR.appendChild(o); });
+  selR.value = APP.regimes["ENFANTS_5ANS"] ? "ENFANTS_5ANS" : (cles[0]||"");
+  var selA=$("mfAnnee"); selA.innerHTML=""; var an=new Date().getFullYear();
+  for(var y=an; y>=an-3; y--){ var o=document.createElement("option"); o.value=y; o.textContent=y; selA.appendChild(o); }
+  selA.value=an;
+  var selM=$("mfMoisFiltre");
+  if(selM){ selM.innerHTML="";
+    var noms=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    var oAll=document.createElement("option"); oAll.value=""; oAll.textContent="Tous les mois"; selM.appendChild(oAll);
+    for(var mi=1; mi<=12; mi++){ var om=document.createElement("option"); om.value=("0"+mi).slice(-2); om.textContent=noms[mi-1]; selM.appendChild(om); }
+    selM.value=("0"+(new Date().getMonth()+1)).slice(-2);   // mois en cours par défaut
+  }
+}
+
+function mfCharger(){
+  var selR=$("mfRegime"); if(!selR || !selR.value) return;
+  if(!navigator.onLine){ $("mfMois").innerHTML=""; $("mfMsg").textContent="📴 « Mes factures » nécessite une connexion internet."; return; }
+  $("mfMsg").textContent="Chargement…"; $("mfMois").innerHTML="";
+  var regime=selR.value, annee=$("mfAnnee").value;
+  apiCall({ action:"factures_mois", email:APP.auth.email, pin:APP.auth.pin, regime:regime, annee:annee })
+    .then(function(res){
+      if(res.error){ $("mfMsg").textContent="❌ "+res.error; return; }
+      $("mfMsg").textContent=""; _mfRenderMois(regime, res.mois||[]);
+    }).catch(function(){ $("mfMsg").textContent="❌ Erreur réseau."; });
+}
+
+function _mfRenderMois(regime, mois){
+  var box=$("mfMois"); box.innerHTML="";
+  var fMois=($("mfMoisFiltre")&&$("mfMoisFiltre").value)||"";   // "MM" ou "" (tous)
+  if(fMois) mois=mois.filter(function(m){ return String(m.key||"").slice(5)===fMois; });
+  // Nombre de brouillons (à compléter) par mois
+  mois.forEach(function(m){ m._br=_brouillonsDuMois(regime, m.key).length; });
+  var aucun=!mois.length || mois.every(function(m){ return m.count===0 && !m._br; });
+  if(aucun){ var e=document.createElement("div"); e.style.cssText="color:#777;font-size:13px"; e.textContent=fMois?"Aucune facture pour ce mois.":"Aucune facture enregistrée pour cette année."; box.appendChild(e); }
+  mois.forEach(function(m){
+    var nbBr=m._br||0;
+    var actif=(m.count>0 || nbBr>0);
+    var d=document.createElement("div");
+    d.style.cssText="border:1px solid "+(actif?"#cfe3d6":"#eee")+";border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"+(actif?"background:#f4faf6;cursor:pointer":"opacity:.5");
+    var nbRej=m.rejets||0;
+    function pill(txt,bg){ return ' <span style="font-size:10px;background:'+bg+';color:#fff;border-radius:10px;padding:1px 7px;vertical-align:middle">'+txt+'</span>'; }
+    var badge="";
+    if(m.statut==="Envoyé") badge+=pill("🔒 Envoyée","#1a7a4a");
+    else if(m.statut==="En vérification") badge+=pill("🔎 En vérification","#b9770e");
+    else if(m.statut==="Validé") badge+=pill("✓ Validée","#1a7a4a");
+    else if(m.statut==="Partiel") badge+=pill("⚠️ Partielle","#c0652a");
+    else if(m.statut==="Rejeté") badge+=pill("⛔ Rejetée","#c0392b");
+    if(nbRej) badge+=pill("⚠️ "+nbRej+" à corriger","#c0392b");
+    if(nbBr) badge+=pill("📝 "+nbBr+" à compléter","#b9770e");
+    var ligne2 = m.count>0 ? (m.count+" facture(s)"+(nbRej?" · "+nbRej+" à corriger":"")) : (nbBr? (nbBr+" facture(s) à compléter") : "Aucune facture");
+    d.innerHTML='<div><div style="font-weight:700;font-size:15px">'+m.label+badge+'</div>'+
+      '<div style="font-size:12px;color:#667;margin-top:2px">'+ligne2+'</div></div>'+
+      (actif? '<div style="text-align:right">'+(m.count>0?'<div style="font-weight:800;color:var(--green);font-size:15px">'+_fmtF(m.montant)+' F</div>':'')+'<div style="font-size:11px;color:#999">ouvrir ▸</div></div>' : '');
+    if(actif){ d.onclick=function(){ ouvrirMoisFacture(regime, m.key, m.label); }; }
+    box.appendChild(d);
+  });
+}
+
+function ouvrirMoisFacture(regime, moisKey, label){
+  if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
+  showLoader("Chargement…", label);
+  apiCall({ action:"factures_liste", email:APP.auth.email, pin:APP.auth.pin, regime:regime, moisKey:moisKey })
+    .then(function(res){
+      hideLoader();
+      if(res.error){ toast("❌ "+res.error); return; }
+      APP._mf={ regime:regime, moisKey:moisKey, label:label, dates:res.dates||[], total:res.total||{count:0,montant:0}, envoi:res.envoi||{statut:""}, rejets:res.rejets||[] };
+      _mfRenderBenefs();
+    }).catch(function(){ hideLoader(); toast("❌ Erreur réseau."); });
+}
+
+function _tauxTexte(regime){ return Math.round(_tauxCSUClient(regime)*100)+"%"; }
+
+function _mfTelechargerFacture(btn){
+  var mf=APP._mf; if(!mf) return;
+  if(!navigator.onLine){ toast("📴 Connexion requise pour le téléchargement."); return; }
+  if(btn){ btn.disabled=true; btn.textContent="⏳ Génération…"; }
+  apiCall({ action:"pdf", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, format:"pdf" })
+    .then(function(res){
+      if(btn){ btn.disabled=false; btn.textContent="📄 Télécharger la facture"; }
+      if(res.error){ toast("❌ "+res.error); return; }
+      var files=(res.files||[]).filter(function(f){ return f.base64; });
+      if(files.length){ files.forEach(function(f){ telechargerBase64(f.base64, f.filename||"facture.pdf"); }); toast("✅ "+files.length+" fichier(s) téléchargé(s)"); }
+      else if(res.base64){ telechargerBase64(res.base64, res.filename||"facture.pdf"); toast("✅ Facture téléchargée"); }
+      else toast("❌ Réponse inattendue du serveur.");
+    }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent="📄 Télécharger la facture"; } toast("❌ Erreur réseau."); });
+}
+
+function _mfRenderBenefs(){
+  var mf=APP._mf; if(!mf) return;
+  var env=mf.envoi||{statut:""}; var nbRej=_mfRejets().length;
+  var st=env.statut||"";
+  var fullLock=(st==="Envoyé"||st==="En vérification"||st==="Validé");
+  var verrTotal=(fullLock && nbRej===0);                 // verrouillée, aucune action ICP
+  var partiel=(nbRej>0 && st!=="Rejeté");                // des rejets ciblés à corriger
+  var rejete=(st==="Rejeté");                            // rejet du mois entier
+  var dest=env.destination||(mf.regime==="ENFANTS_5ANS"?"District":"SR");
+  $("fmTitre").textContent="📋 "+((APP.regimes[mf.regime]&&APP.regimes[mf.regime].titre)||mf.regime)+" — "+mf.label;
+  var body=$("fmBody"); body.innerHTML="";
+  // Récap + taux + téléchargement
+  var head=document.createElement("div");
+  head.style.cssText="border:1px solid #cfe3d6;background:#f4faf6;border-radius:10px;padding:10px;margin-bottom:12px";
+  head.innerHTML="<div style='font-size:13px;color:#555'><b>"+(mf.total.count||0)+"</b> facture(s) · Total : <b style='color:var(--green)'>"+_fmtF(mf.total.montant||0)+" F</b></div>"+
+                 "<div style='font-size:12px;color:#777;margin-top:3px'>Taux de couverture : <b>"+_tauxTexte(mf.regime)+"</b></div>";
+  if((mf.total.count||0)>0){
+    var bDl=document.createElement("button"); bDl.type="button"; bDl.className="btn"; bDl.textContent="📄 Télécharger la facture";
+    bDl.style.cssText="width:100%;margin-top:10px"; bDl.onclick=function(){ _mfTelechargerFacture(bDl); };
+    head.appendChild(bDl);
+  }
+  body.appendChild(head);
+
+  // Bandeau statut d'envoi
+  if(verrTotal){
+    var bv=document.createElement("div");
+    if(st==="En vérification"){
+      bv.style.cssText="border:1px solid #f0d8a0;background:#fff7e6;color:#b9770e;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px";
+      bv.innerHTML="🔎 <b>Vérification en cours par le "+dest+"</b>.<br>La facture est verrouillée le temps de la vérification.";
+    } else if(st==="Validé"){
+      bv.style.cssText="border:1px solid #bfe3cc;background:#eafaf0;color:#1a7a4a;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px";
+      bv.innerHTML="✅ <b>Facture validée par le "+dest+"</b>.<br>Aucune modification n'est nécessaire.";
+    } else {
+      bv.style.cssText="border:1px solid #bfe3cc;background:#eafaf0;color:#1a7a4a;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px";
+      bv.innerHTML="🔒 <b>Facture envoyée au "+dest+"</b>"+(env.dateEnvoi?(" le "+env.dateEnvoi):"")+".<br>En attente de vérification — verrouillée (sauf rejet).";
+    }
+    body.appendChild(bv);
+  } else if(partiel){
+    var bp=document.createElement("div"); bp.style.cssText="border:1px solid #f0d8a0;background:#fff7e6;color:#b9770e;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px";
+    bp.innerHTML="⚠️ <b>Facture envoyée</b> avec <b>"+nbRej+" rejet(s) à corriger</b>.<br>Seuls les éléments <span style='color:#c0392b'>signalés ⛔</span> sont modifiables. Corrigez-les puis <b>renvoyez</b>.";
+    body.appendChild(bp);
+  } else if(rejete){
+    var br=document.createElement("div"); br.style.cssText="border:1px solid #f0c0c0;background:#fdeded;color:#c0392b;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px";
+    br.innerHTML="⛔ <b>Rejetée par le "+dest+" (tout le mois)</b>"+(env.dateRejet?(" le "+env.dateRejet):"")+(env.motif?("<br>Motif : <b>"+env.motif+"</b>"):"")+"<br>Corrigez puis renvoyez.";
+    body.appendChild(br);
+  }
+  // ── Factures à compléter (brouillons) de ce mois ──
+  var brs=_brouillonsDuMois(mf.regime, mf.moisKey);
+  if(brs.length){
+    var bt=document.createElement("div"); bt.style.cssText="font-weight:800;color:#b9770e;font-size:13px;margin:4px 0 6px;border-bottom:1px solid #f0e0c0;padding-bottom:3px";
+    bt.textContent="📝 À compléter ("+brs.length+")"; body.appendChild(bt);
+    brs.forEach(function(b){
+      var c=document.createElement("div"); c.style.cssText="border:1px solid #f0e0c0;background:#fffaf2;border-radius:8px;padding:7px 9px;margin-bottom:6px;display:flex;align-items:center;gap:8px";
+      var nom=(((b.prenom||"")+" "+(b.nom||"")).trim())||"(sans nom)";
+      var nbP=(b.prestas?b.prestas.length:(b.panier?b.panier.length:0));
+      var left=document.createElement("div"); left.style.cssText="flex:1;min-width:0";
+      left.innerHTML='<div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nom+'</div>'+
+        '<div style="font-size:11px;color:#998;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(b.code?(b.code+" · "):"")+nbP+' prest. · brouillon</div>';
+      var acts=document.createElement("div"); acts.style.cssText="display:flex;gap:4px;flex:0 0 auto";
+      function icb(txt,titre,bg,fn){ var x=document.createElement("button"); x.type="button"; x.textContent=txt; x.title=titre; x.onclick=fn;
+        x.style.cssText="width:auto;min-width:34px;height:34px;padding:0 10px;margin:0;border:none;border-radius:8px;font-size:13px;font-weight:700;background:"+bg+";color:#fff"; return x; }
+      acts.appendChild(icb("✍️ Compléter","Compléter","#b9770e",(function(id){ return function(){ reprendreBrouillon(id); }; })(b.id)));
+      acts.appendChild(icb("🗑️","Supprimer","#c0392b",(function(id){ return function(){ if(confirm("Supprimer ce brouillon ?")){ _supprimerBrouillon(id); _mfRenderBenefs(); } }; })(b.id)));
+      c.appendChild(left); c.appendChild(acts); body.appendChild(c);
+    });
+  }
+
+  // Bouton envoyer / renvoyer (si non verrouillé totalement et au moins une facture)
+  if(!verrTotal && (mf.dates&&mf.dates.length)){
+    var nbBr=brs.length;
+    var renvoi=(rejete||partiel);
+    // Envoi possible seulement en fin de mois (évite les envois par erreur).
+    // Un RENVOI (après rejet) reste possible à tout moment pour corriger.
+    var envoiOk = renvoi || _moisEnvoiAutorise(mf.moisKey);
+    if(envoiOk){
+      var bEnv=document.createElement("button"); bEnv.type="button"; bEnv.className="btn";
+      bEnv.textContent=(renvoi?"📤 Renvoyer la facture au ":"📤 Envoyer la facture au ")+dest;
+      bEnv.style.cssText="width:100%;margin:"+(nbBr?"8px 0 4px":"8px 0 12px")+";background:"+(nbBr?"#9aa":(renvoi?"#c0392b":"#1a7a4a"));
+      bEnv.onclick=function(){ envoyerFacture(bEnv); };
+      body.appendChild(bEnv);
+      if(nbBr){ var w=document.createElement("div"); w.style.cssText="font-size:12px;color:#b9770e;margin-bottom:12px";
+        w.textContent="📝 "+nbBr+" facture(s) à compléter ci-dessus avant l'envoi."; body.appendChild(w); }
+    } else {
+      var info=document.createElement("div");
+      info.style.cssText="border:1px solid #cfe0ef;background:#eef5fb;color:#2c5d86;border-radius:10px;padding:10px;margin:8px 0 12px;font-size:12.5px";
+      info.innerHTML="🔒 L'envoi de la facture sera possible à partir du <b>"+_ctbEsc(_dateDebutEnvoi(mf.moisKey))+"</b> (fin du mois).<br>Vous pouvez continuer à saisir et modifier vos factures d'ici là.";
+      body.appendChild(info);
+    }
+  }
+
+  if(!mf.dates.length && !brs.length){ var e=document.createElement("div"); e.style.cssText="color:#777;font-size:13px"; e.textContent="Aucune facture pour ce mois."; body.appendChild(e); }
+  if(mf.dates.length){ var sh=document.createElement("div"); sh.style.cssText="font-weight:800;color:var(--green);font-size:13px;margin:10px 0 2px"; sh.textContent="📄 Factures enregistrées"; body.appendChild(sh); }
+  mf.dates.forEach(function(D, di){
+    var t=document.createElement("div"); t.style.cssText="font-weight:800;color:var(--green);font-size:13px;margin:12px 0 6px;border-bottom:1px solid #eee;padding-bottom:3px";
+    t.textContent="📅 "+D.date+"  ("+D.benefs.length+")"; body.appendChild(t);
+    D.benefs.forEach(function(B, bi){
+      var c=document.createElement("div");
+      c.style.cssText="border:1px solid #e5e5e5;border-radius:8px;padding:7px 9px;margin-bottom:6px;display:flex;align-items:center;gap:8px";
+      var rejB = (B.rejet!==undefined) || (B.hasRejet===true);
+      var motifB = (B.rejet!==undefined) ? B.rejet : "";
+      if(rejB) c.style.borderColor="#e0a0a0";
+      var left=document.createElement("div"); left.style.cssText="flex:1;min-width:0";
+      left.innerHTML='<div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(rejB?'⛔ ':'')+(((B.prenom||"")+" "+(B.nom||"")).trim()||"—")+'</div>'+
+        '<div style="font-size:11px;color:#667;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(B.code?(B.code+" · "):"")+B.prestations.length+' prest. · <b>'+_fmtF(B.montantFacture)+' F</b></div>'+
+        (rejB?('<div style="font-size:11px;color:#c0392b;white-space:normal">Rejeté'+(motifB?(' : '+motifB):(B.hasRejet?' (prestation)':''))+'</div>'):'');
+      var acts=document.createElement("div"); acts.style.cssText="display:flex;gap:4px;flex:0 0 auto";
+      function ic(txt, titre, bg, fn){ var b=document.createElement("button"); b.type="button"; b.textContent=txt; b.title=titre; b.onclick=fn;
+        b.style.cssText="width:34px;height:34px;padding:0;margin:0;border:none;border-radius:8px;font-size:15px;line-height:34px;background:"+bg+";color:#fff"; return b; }
+      acts.appendChild(ic("👁️","Consulter","#1a7a4a",(function(dd,bb){ return function(){ consulterBenef(dd,bb); }; })(di,bi)));
+      // Modifier : si le mois est déverrouillé, si le bénéficiaire est rejeté, OU s'il a une prestation rejetée à corriger
+      if(_benefEditable(B) || B.hasRejet===true){
+        acts.appendChild(ic("✏️","Modifier","#2471a3",(function(dd,bb){ return function(){ modifierFacture(dd,bb); }; })(di,bi)));
+      }
+      if(_benefEditable(B)){
+        acts.appendChild(ic("🗑️","Supprimer","#c0392b",(function(dd,bb){ return function(){ supprimerFacture(dd,bb); }; })(di,bi)));
+      }
+      c.appendChild(left); c.appendChild(acts); body.appendChild(c);
+    });
+  });
+  showScreen("screenFactureMois");
+}
+
+function consulterBenef(di, bi){
+  var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; if(!D) return; var B=D.benefs[bi]; if(!B) return;
+  APP._mfConsult={ di:di, bi:bi };
+  var estEnfants=(mf.regime==="ENFANTS_5ANS");
+  var taux=_tauxCSUClient(mf.regime);
+  $("fcTitre").textContent="👤 "+(((B.prenom||"")+" "+(B.nom||"")).trim()||"Bénéficiaire");
+  var body=$("fcBody"); body.innerHTML="";
+  // Totaux parts
+  var totCSU=0, totPat=0;
+  (B.prestations||[]).forEach(function(P){
+    var csu=P.montant||0; var brut=(taux>0?csu/taux:csu); totCSU+=csu; totPat+=Math.round(brut-csu);
+  });
+  if(estEnfants){ totCSU=B.montantFacture||0; totPat=0; }
+  var h=document.createElement("div"); h.style.cssText="border:1px solid #cfe3d6;background:#f4faf6;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;color:#555";
+  h.innerHTML=(B.code?("Code : <b>"+B.code+"</b><br>"):"")+
+    "Date de prise en charge : <b>"+D.date+"</b><br>"+
+    "Taux de couverture : <b>"+_tauxTexte(mf.regime)+"</b><br>"+
+    "Part CSU : <b style='color:var(--green)'>"+_fmtF(totCSU)+" F</b> · Part patient : <b>"+_fmtF(totPat)+" F</b>";
+  body.appendChild(h);
+  // Bouton Modifier si correction possible (mois déverrouillé, bénéficiaire rejeté, ou prestation rejetée)
+  if(_benefEditable(B) || B.hasRejet===true){
+    var bMod=document.createElement("button"); bMod.type="button"; bMod.className="btn";
+    bMod.textContent="✏️ Modifier / corriger ce bénéficiaire";
+    bMod.style.cssText="width:100%;margin-bottom:10px;background:#2471a3";
+    bMod.onclick=(function(dd,bb){ return function(){ modifierFacture(dd,bb); }; })(di,bi);
+    body.appendChild(bMod);
+  }
+  (B.prestations||[]).forEach(function(P, pi){
+    var csu=P.montant||0; var brut=(taux>0?csu/taux:csu); var pat=Math.round(brut-csu);
+    var c=document.createElement("div"); c.style.cssText="border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px";
+    var info='<div style="font-weight:700;font-size:13px">'+(P.prestation||P.service||"—")+'</div>';
+    var sub=[]; if(P.service && P.prestation) sub.push(P.service);
+    if(P.qte) sub.push("Qté "+P.qte); if(P.pu) sub.push("PU "+_fmtF(P.pu));
+    if(sub.length) info+='<div style="font-size:11px;color:#667;margin-top:2px">'+sub.join(" · ")+'</div>';
+    if(estEnfants){ info+='<div style="font-size:12px;color:#999;margin-top:3px">Inclus au forfait</div>'; }
+    if(P.rejet!==undefined){ info+='<div style="font-size:11px;color:#c0392b;margin-top:2px">⛔ Rejeté'+(P.rejet?(' : '+P.rejet):'')+'</div>'; c.style.borderColor="#e0a0a0"; }
+    var left=document.createElement("div"); left.style.cssText="flex:1;min-width:0"; left.innerHTML=info;
+    c.appendChild(left);
+    if(_prestEditable(B,P)){
+      var del=document.createElement("button"); del.type="button"; del.textContent="✖"; del.title="Retirer cette prestation";
+      del.style.cssText="flex:0 0 auto;width:34px;height:34px;padding:0;margin:0;border:none;border-radius:8px;font-size:15px;background:#c0392b;color:#fff";
+      del.onclick=(function(dd,bb,pp){ return function(){ retirerPrestation(dd,bb,pp); }; })(di,bi,pi);
+      c.appendChild(del);
+    }
+    body.appendChild(c);
+  });
+  showScreen("screenFactureConsult");
+}
+
+function _mfRetourMois(){ _mfRenderBenefs(); }
+
+// ── BROUILLONS (locaux, sur l'appareil) ──
+function _getBrouillons(){ try{ return JSON.parse(localStorage.getItem("sencsu_brouillons")||"[]"); }catch(e){ return []; } }
+function _setBrouillons(a){ try{ localStorage.setItem("sencsu_brouillons", JSON.stringify(a)); }catch(e){} }
+function _supprimerBrouillon(id){ _setBrouillons(_getBrouillons().filter(function(b){ return b.id!==id; })); }
+function _fmtDateCourte(ts){ try{ var d=new Date(ts); return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear(); }catch(e){ return ""; } }
+
+function _enregistrerBrouillon(){
+  var regime=APP.currentRegime; if(!regime){ return; }
+  var fields={};
+  document.querySelectorAll("#formFields [data-field], #formActeInputs [data-field]").forEach(function(el){
+    var n=el.getAttribute("data-field"); if(n!==null) fields[n]=el.value;
+  });
+  var id=APP._brouillonEnCours || ("BR_"+uid());
+  var list=_getBrouillons().filter(function(b){ return b.id!==id; });
+  list.unshift({ id:id, regime:regime, cree:Date.now(),
+                 nom:fields["Nom"]||"", prenom:fields["Prénom(s)"]||"",
+                 fields:fields, panier:(APP._csuPanier||[]).slice() });
+  _setBrouillons(list);
+  APP._brouillonEnCours=null;
+  toast("📝 Brouillon enregistré — à compléter dans « Mes factures »");
+  showScreen("screenHome");
+}
+
+function reprendreBrouillon(id){
+  var b=_getBrouillons().filter(function(x){ return x.id===id; })[0]; if(!b) return;
+  if(!APP.regimes[b.regime]){ toast("Régime indisponible sur cet appareil."); return; }
+  if(b.contrib){ openContributif(b.regime, b); return; }   // Formulaire fluide pré-rempli (contributif / BSF-CEC)
+  openForm(b.regime, false, false, true);   // sansAssistant : formulaire direct, enregistrement normal
+  APP._verifStatut="manuel"; APP._verifMotif="";   // brouillon : pas de re-vérification imposée
+  APP._brouillonEnCours=b.id;
+  var f=b.fields||{};
+  Object.keys(f).forEach(function(k){
+    var sel='[data-field="'+String(k).replace(/"/g,'\\"')+'"]';
+    var el=$("formFields").querySelector(sel) || $("formActeInputs").querySelector(sel);
+    if(el){ el.value=f[k]; try{ el.dispatchEvent(new Event("change")); }catch(e){} }
+  });
+  APP._csuPanier=(b.panier||[]).slice();
+  try{ renderPanierCSU(); }catch(e){}
+  $("formTitle").textContent="📝 Brouillon — "+(((b.prenom||"")+" "+(b.nom||"")).trim()||"à compléter");
+  var bb=$("btnBrouillon"); if(bb) bb.style.display="";
+  var bv=$("btnValiderPatient"); if(bv) bv.style.display="";
+}
+
+function _mfRenderBrouillons(){
+  var box=$("mfBrouillons"); if(!box) return; box.innerHTML="";
+  var list=_getBrouillons(); if(!list.length) return;
+  var t=document.createElement("div"); t.style.cssText="font-weight:800;color:#b9770e;font-size:13px;margin:0 0 6px";
+  t.textContent="📝 Brouillons ("+list.length+")"; box.appendChild(t);
+  list.forEach(function(b){
+    var c=document.createElement("div"); c.style.cssText="border:1px solid #f0e0c0;background:#fffaf2;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px";
+    var left=document.createElement("div"); left.style.cssText="flex:1;min-width:0";
+    var nom=(((b.prenom||"")+" "+(b.nom||"")).trim())||"(sans nom)";
+    left.innerHTML='<div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nom+'</div>'+
+      '<div style="font-size:11px;color:#998">'+((APP.regimes[b.regime]&&APP.regimes[b.regime].titre)||b.regime)+' · '+_fmtDateCourte(b.cree)+'</div>';
+    var acts=document.createElement("div"); acts.style.cssText="display:flex;gap:4px;flex:0 0 auto";
+    function ic(txt,titre,bg,fn){ var x=document.createElement("button"); x.type="button"; x.textContent=txt; x.title=titre; x.onclick=fn;
+      x.style.cssText="width:34px;height:34px;padding:0;margin:0;border:none;border-radius:8px;font-size:15px;background:"+bg+";color:#fff"; return x; }
+    acts.appendChild(ic("▶️","Reprendre","#1a7a4a",(function(bb){ return function(){ reprendreBrouillon(bb.id); }; })(b)));
+    acts.appendChild(ic("🗑️","Supprimer","#c0392b",(function(bb){ return function(){ if(confirm("Supprimer ce brouillon ?")){ _supprimerBrouillon(bb.id); _mfRenderBrouillons(); } }; })(b)));
+    c.appendChild(left); c.appendChild(acts); box.appendChild(c);
+  });
+  var sep=document.createElement("div"); sep.style.cssText="border-top:1px solid #eee;margin:10px 0 0"; box.appendChild(sep);
+}
+
+function _mfRecalcTotal(){
+  var mf=APP._mf; if(!mf) return; var c=0, m=0;
+  mf.dates.forEach(function(D){ D.benefs.forEach(function(B){ c++; m+=(B.montantFacture||0); }); });
+  mf.total={ count:c, montant:Math.round(m) };
+}
+function _mfStatut(){ return (APP._mf && APP._mf.envoi && APP._mf.envoi.statut) || ""; }
+// Mois déverrouillé totalement (non envoyé, ou rejet du mois entier)
+function _mfFullUnlock(){ var s=_mfStatut(); return s==="" || s==="Rejeté"; }
+function _mfRejets(){ return (APP._mf && APP._mf.rejets) || []; }
+function _mfVerrouille(){ return !_mfFullUnlock() && _mfRejets().length===0; }  // aucune édition possible
+// Modifier/Supprimer le bénéficiaire entier : si mois déverrouillé OU ce bénéficiaire est rejeté
+function _benefEditable(B){ return _mfFullUnlock() || !!(B && B.rejet!==undefined); }
+// Retirer une prestation : si mois déverrouillé OU cette prestation/ce bénéficiaire est rejeté
+function _prestEditable(B,P){ return _mfFullUnlock() || !!((P && P.rejet!==undefined) || (B && B.rejet!==undefined)); }
+
+// Mois (YYYY-MM) auquel rattacher un brouillon : date de prise en charge si
+// présente (contrib : b.date ; formulaire : fields[...]), sinon le mois de création.
+function _brouillonMois(b){
+  var dp = b.contrib ? (b.date||"") : ((b.fields&&b.fields["Date de prise en charge"])||"");
+  var d = dp ? _versDate(dp) : null;
+  if(!d){ d = new Date(b.cree||Date.now()); }
+  if(!d || isNaN(d)) d = new Date();
+  return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2);
+}
+function _brouillonsDuMois(regime, moisKey){
+  return _getBrouillons().filter(function(b){ return b.regime===regime && _brouillonMois(b)===moisKey; });
+}
+
+// Envoi autorisé seulement en fin de mois (les 3 derniers jours), ou si le mois est déjà écoulé.
+var JOURS_ENVOI_AVANT_FIN = 2;   // mettre 0 = uniquement le dernier jour du mois
+function _dernierJourMois(y, mo){ return new Date(y, mo, 0).getDate(); }   // mo = 1..12
+function _moisEnvoiAutorise(moisKey){
+  var m=String(moisKey||"").match(/^(\d{4})-(\d{2})/); if(!m) return true;
+  var y=+m[1], mo=+m[2], now=new Date();
+  var cur=now.getFullYear()*100+(now.getMonth()+1), key=y*100+mo;
+  if(key<cur) return true;      // mois déjà écoulé -> autorisé (rattrapage)
+  if(key>cur) return false;     // mois futur -> interdit
+  return now.getDate() >= (_dernierJourMois(y,mo) - JOURS_ENVOI_AVANT_FIN);
+}
+function _dateDebutEnvoi(moisKey){
+  var m=String(moisKey||"").match(/^(\d{4})-(\d{2})/); if(!m) return "";
+  var y=+m[1], mo=+m[2], jour=_dernierJourMois(y,mo) - JOURS_ENVOI_AVANT_FIN;
+  var noms=["","janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  return jour+" "+noms[mo]+" "+y;
+}
+
+function envoyerFacture(btn){
+  var mf=APP._mf; if(!mf) return;
+  if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
+  if(!(mf.dates && mf.dates.length)){ toast("Aucune facture à envoyer."); return; }
+  // Bloquer l'envoi s'il reste des brouillons de ce mois à finaliser
+  var brs=_brouillonsDuMois(mf.regime, mf.moisKey);
+  if(brs.length){ toast("📝 Finalisez ou supprimez vos "+brs.length+" brouillon(s) de ce régime avant d'envoyer.", 4500); return; }
+  // Garde-fou fin de mois (sauf renvoi après rejet)
+  var estRenvoi=(mf.envoi&&(mf.envoi.statut==="Rejeté"||((mf.rejets||[]).length>0)));
+  if(!estRenvoi && !_moisEnvoiAutorise(mf.moisKey)){ toast("🔒 Envoi possible seulement en fin de mois (à partir du "+_dateDebutEnvoi(mf.moisKey)+").", 5000); return; }
+  var dest=(mf.envoi&&mf.envoi.destination)||(mf.regime==="ENFANTS_5ANS"?"District":"SR");
+  if(!confirm("Envoyer la facture de "+mf.label+" au "+dest+" ?\n\nAprès envoi, elle sera VERROUILLÉE (plus de modification), sauf en cas de rejet.")) return;
+  if(btn){ btn.disabled=true; btn.textContent="⏳ Envoi…"; }
+  apiCall({ action:"facture_envoyer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey })
+    .then(function(res){
+      if(res.error){ if(btn){ btn.disabled=false; } toast("❌ "+res.error); ouvrirMoisFacture(mf.regime, mf.moisKey, mf.label); return; }
+      toast("📤 Facture envoyée au "+(res.destination||dest));
+      // Mise à jour immédiate de l'écran (ne dépend pas d'un rechargement réseau)
+      mf.envoi = mf.envoi || {};
+      mf.envoi.statut = res.statut || "Envoyé";
+      mf.envoi.destination = res.destination || dest;
+      mf.rejets = [];
+      _mfRenderBenefs();
+    })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent="📤 Envoyer la facture"; } toast("❌ Erreur réseau."); });
+}
+
+// ── MODIFIER une facture : rouvrir le formulaire pré-rempli ──
+function _versISO(s){
+  var m=String(s||"").match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m) return m[3]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2);
+  var m2=String(s||"").match(/^\d{4}-\d{2}-\d{2}/); return m2?m2[0]:"";
+}
+
+// Régimes utilisant le formulaire fluide (identique à la facturation)
+function _ctbEstFluide(regime){ return ["CLASSIQUE","BSF","SESAME","ENFANTS_5ANS"].indexOf(regime)>=0; }
+
+// Construit un pré-remplissage (benef + prestations) pour rouvrir le formulaire fluide
+function _ctbPrefillBenef(regime, D, B){
+  var data=B.data||{}, benef;
+  if(regime==="ENFANTS_5ANS"){
+    benef={ _std:true, prenom:B.prenom||"", nom:B.nom||"", naissance:B.naissance||data["Date de naissance"]||"",
+            sexe:B.sexe||data["Sexe (M/F)"]||"", extraitNo:B.code||data["N° Matricule / Extrait naissance"]||"",
+            registre:data["N° dans le registre"]||"", tel:B.tel||data["N° Téléphone"]||"" };
+  } else if(regime==="SESAME"){
+    benef={ _sesame:true, prenom:B.prenom||"", nom:B.nom||"", naissance:B.naissance||data["Date de naissance"]||"",
+            naissanceFR:B.naissance||data["Date de naissance"]||"", sexe:B.sexe||data["Sexe (H/F)"]||"",
+            cni:B.code||data["N° CNI"]||"", telephone:B.tel||data["N° Téléphone"]||"" };
+  } else {
+    benef={ prenom:B.prenom||"", nom:B.nom||"", naissanceFR:B.naissance||data["Date de naissance"]||"",
+            sexe:B.sexe||data["Sexe (H/F)"]||"", telephone:B.tel||data["N° Téléphone"]||"", code:B.code||"", _manuel:true };
+  }
+  var estEnf=(regime==="ENFANTS_5ANS");
+  var prestas=(B.prestations||[]).map(function(P){
+    if(estEnf){ var m=String(P.prestation||"").match(/^(.*?)\s*×\s*(\d+)\s*$/);
+      return { presta:(m?m[1]:(P.prestation||P.service||"")), qte:(m?+m[2]:(P.qte||1)) }; }
+    return { presta:(P.prestation||P.service||""), qte:(P.qte||1), pu:(P.pu||0) };
+  });
+  return { _edition:true, regime:regime, date:_versISO(D.date)||D.date, code:B.code||"", benef:benef, prestas:prestas };
+}
+
+function modifierFacture(di, bi){
+  var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
+  if(!_benefEditable(B) && !B.hasRejet){ toast("🔒 Facture envoyée — verrouillée."); return; }
+  if(!navigator.onLine){ toast("📴 Connexion requise pour modifier."); return; }
+  var ids=(B.prestations||[]).map(function(p){ return p.id; }).filter(Boolean);
+  // Formulaire fluide (identique à la facturation) pour les régimes concernés
+  if(_ctbEstFluide(mf.regime)){
+    openContributif(mf.regime, _ctbPrefillBenef(mf.regime, D, B));
+    APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids };
+    var ti=$("contribTitle"); if(ti) ti.textContent="✏️ Corriger — "+(((B.prenom||"")+" "+(B.nom||"")).trim()||ti.textContent);
+    return;
+  }
+  APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids };
+  openForm(mf.regime, false, true);   // edition=true : formulaire seul, pas d'assistant
+  _prefillEdition(B);
+}
+
+function _prefillEdition(B){
+  var data=B.data||{};
+  var af=APP._csuActeFields||[];
+  var acteNames={}; af.forEach(function(f){ acteNames[f.name]=true; });
+  // Champs administratifs/médicaux hors acte (dans #formFields OU la zone médicale)
+  Object.keys(data).forEach(function(k){
+    if(acteNames[k]) return;   // champs d'acte : gérés par le panier
+    var sel='[data-field="'+String(k).replace(/"/g,'\\"')+'"]';
+    var el=$("formFields").querySelector(sel) || $("formActeInputs").querySelector(sel);
+    if(!el) return;
+    if(el.type==="date"){ var iso=_versISO(data[k]); if(iso) el.value=iso; }
+    else { el.value=data[k]; }
+    try{ el.dispatchEvent(new Event("change")); }catch(e){}
+  });
+  // Prestations -> panier
+  var fServ=af.filter(function(f){return f.list==="services";})[0];
+  var fPrest=af.filter(function(f){return f.list==="prestations";})[0];
+  var fQte=af.filter(function(f){return f.qte;})[0];
+  var fPU=af.filter(function(f){return f.pu;})[0];
+  var fMt=af.filter(function(f){return f.montant;})[0];
+  var taux=_tauxCSUClient(APP.currentRegime);
+  APP._csuPanier=(B.prestations||[]).map(function(P){
+    var acte={};
+    if(fServ) acte[fServ.name]=P.service||"";
+    if(fPrest) acte[fPrest.name]=P.prestation||"";
+    if(fQte) acte[fQte.name]=P.qte||"";
+    if(fPU) acte[fPU.name]=P.pu||"";
+    if(fMt){ var net=P.montant||0; acte[fMt.name]= (taux<1 ? Math.round(net/taux) : net); }
+    return acte;
+  });
+  try{ renderPanierCSU(); }catch(e){}
+  $("formTitle").textContent="✏️ Modifier — "+(((B.prenom||"")+" "+(B.nom||"")).trim()||"facture");
+  var bv=$("btnValiderPatient"); if(bv) bv.textContent="💾 Enregistrer les modifications";
+}
+
+// Champs "acte" d'un régime (sans ouvrir le formulaire) — pour régénérer une attestation depuis « Mes factures ».
+function _acteFieldsRegime(regime){
+  var cfg=APP.regimes&&APP.regimes[regime]; if(!cfg||!cfg.fields) return [];
+  return cfg.fields.filter(function(f){ return f.list==="services"||f.list==="prestations"||f.qte||f.pu||f.montant; });
+}
+// Reconstruit le tableau d'actes (clés = noms de champs) à partir des prestations d'un bénéficiaire.
+function _actesDepuisBenef(regime, B){
+  var af=_acteFieldsRegime(regime);
+  var fServ=af.filter(function(f){return f.list==="services";})[0];
+  var fPrest=af.filter(function(f){return f.list==="prestations";})[0];
+  var fQte=af.filter(function(f){return f.qte;})[0];
+  var fPU=af.filter(function(f){return f.pu;})[0];
+  var fMt=af.filter(function(f){return f.montant;})[0];
+  var taux=_tauxCSUClient(regime);
+  return (B.prestations||[]).map(function(P){
+    var acte={};
+    if(fServ) acte[fServ.name]=P.service||"";
+    if(fPrest) acte[fPrest.name]=P.prestation||"";
+    if(fQte) acte[fQte.name]=P.qte||"";
+    if(fPU) acte[fPU.name]=P.pu||"";
+    if(fMt){ var net=P.montant||0; acte[fMt.name]=(taux<1?Math.round(net/taux):net); }
+    return acte;
+  });
+}
+// Régénère l'attestation d'un bénéficiaire (état courant de B.prestations) et la remplace sur Drive. Renvoie une Promise.
+function _regenAttestationBenef(regime, B, datePrise, poste){
+  var patient=B.data||{};
+  var dp=datePrise||patient["Date de prise en charge"]||"";
+  var actes=_actesDepuisBenef(regime, B);
+  var af=_acteFieldsRegime(regime);
+  var d=_docsAttestation(regime, patient, actes, af, dp);
+  return _genAttestation(d.attInfo, d.lignes, d.attTotaux).then(function(att){
+    return apiCall({ action:"dossier_maj_docs", email:APP.auth.email, pin:APP.auth.pin, regime:regime,
+      poste:poste||APP.user.poste||"", nom:patient["Nom"]||"", prenom:patient["Prénom(s)"]||"",
+      code:d.code||"", date:dp, attestation:att });
+  });
+}
+
+// Reconstruit les données de l'attestation (lignes + totaux) à partir des données modifiées.
+function _docsAttestation(regime, patient, actes, acteFields, datePrise){
+  var code=_codePatient(regime, patient);
+  var age=""; try{ var a=_ageDepuis(patient["Date de naissance"]||"", datePrise); if(a!=null && !isNaN(a)) age=a; }catch(e){}
+  var taux=TAUX_CSU_DOSSIER[regime]||1;
+  var af=acteFields||[];
+  var fQ=af.filter(function(f){return f.qte;})[0], fPU=af.filter(function(f){return f.pu;})[0],
+      fMT=af.filter(function(f){return f.montant;})[0], fPR=af.filter(function(f){return f.list==="prestations";})[0];
+  var dateAff=(patient["Date de prise en charge"]||datePrise||"");
+  var lignes, attTotaux=null;
+  if(regime==="ENFANTS_5ANS"){
+    var forfait=parseFloat(String(patient["Montant Total"]||"").replace(/[^\d.]/g,""))||1400;
+    lignes=(actes||[]).map(function(a){ return { date:dateAff, nature:fPR?(a[fPR.name]||""):"", paye:"—", facture:"—" }; }).filter(function(L){ return L.nature; });
+    if(!lignes.length) lignes=[{ date:dateAff, nature:"Forfait prise en charge (moins de 5 ans)", paye:"—", facture:"—" }];
+    attTotaux={ paye:0, facture:forfait };
+  } else {
+    lignes=(actes||[]).map(function(a){
+      var q=fQ?parseFloat(a[fQ.name]||"0"):0, pu=fPU?parseFloat(a[fPU.name]||"0"):0;
+      var brut=(q&&pu)? q*pu : (fMT?parseFloat(a[fMT.name]||"0"):0); if(isNaN(brut)) brut=0;
+      var net=Math.round(brut*taux);
+      return { date:dateAff, nature:fPR?(a[fPR.name]||""):"", paye:Math.round(brut-net), facture:net };
+    });
+  }
+  var attInfo={ assureur:"SEN-CSU", numero:_prochainNumeroAttestation(),
+                prenoms:patient["Prénom(s)"]||"", nom:patient["Nom"]||"", code:code, age:age,
+                sexe:patient["Sexe (H/F)"]||patient["Sexe (M/F)"]||"" };
+  return { attInfo:attInfo, lignes:lignes, attTotaux:attTotaux, code:code };
+}
+
+function _enregistrerModification(patient, actes, poste){
+  if(!navigator.onLine){ $("formErr").textContent="📴 Connexion requise pour enregistrer la modification."; return; }
+  var ef=APP._editFacture||{}, regime=APP.currentRegime;
+  var acteFields=(APP._csuActeFields||[]).slice();
+  var entries=actes.map(function(acte){
+    var data={}; Object.keys(patient).forEach(function(k){ data[k]=patient[k]; });
+    Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
+    return { id:uid(), regime:regime, poste:poste, data:data };
+  });
+  function finir(){
+    APP._editMode=false; APP._editFacture=null;
+    var bv=$("btnValiderPatient"); if(bv) bv.textContent="💾 Valider le patient";
+    if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome");
+  }
+  showLoader("Enregistrement des modifications…");
+  apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
+            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), entries:JSON.stringify(entries) })
+    .then(function(res){
+      if(res.error){ hideLoader(); $("formErr").textContent="❌ "+res.error; return; }
+      // Régénérer l'attestation (régimes à dossier) et la remplacer sur Drive (photos conservées)
+      if(REGIMES_DOSSIER[regime]){
+        showLoader("Mise à jour de l'attestation…");
+        var d=_docsAttestation(regime, patient, actes, acteFields, patient["Date de prise en charge"]||"");
+        _genAttestation(d.attInfo, d.lignes, d.attTotaux).then(function(att){
+          return apiCall({ action:"dossier_maj_docs", email:APP.auth.email, pin:APP.auth.pin, regime:regime,
+            poste:poste||APP.user.poste||"", nom:patient["Nom"]||"", prenom:patient["Prénom(s)"]||"",
+            code:d.code||"", date:(patient["Date de prise en charge"]||""), attestation:att });
+        }).then(function(r){
+          hideLoader();
+          toast((r && r.ok && !r.error) ? "✅ Facture + attestation mises à jour" : "✅ Facture modifiée (attestation non mise à jour)");
+          finir();
+        }).catch(function(){ hideLoader(); toast("✅ Facture modifiée (attestation non mise à jour)"); finir(); });
+      } else { hideLoader(); toast("✅ Facture modifiée"); finir(); }
+    })
+    .catch(function(){ hideLoader(); $("formErr").textContent="❌ Erreur réseau — modification non enregistrée."; });
+}
+
+function supprimerFacture(di, bi){
+  var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
+  if(!_benefEditable(B)){ toast("🔒 Facture envoyée — verrouillée."); return; }
+  var ids=(B.prestations||[]).map(function(p){ return p.id; }).filter(Boolean);
+  if(!ids.length){ toast("Impossible : prestations sans identifiant."); return; }
+  var nom=((B.prenom||"")+" "+(B.nom||"")).trim();
+  if(!confirm("Supprimer définitivement la facture de "+(nom||"ce bénéficiaire")+"\n("+ids.length+" prestation(s)) ?\nCette action est irréversible.")) return;
+  if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
+  showLoader("Suppression…");
+  apiCall({ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, ids:JSON.stringify(ids) })
+    .then(function(res){ hideLoader(); if(res.error){ toast("❌ "+res.error); return; }
+      toast("🗑️ Facture supprimée"); ouvrirMoisFacture(mf.regime, mf.moisKey, mf.label); })
+    .catch(function(){ hideLoader(); toast("❌ Erreur réseau."); });
+}
+
+function retirerPrestation(di, bi, pi){
+  var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
+  var P=B.prestations[pi]; if(!P) return;
+  if(!_prestEditable(B,P)){ toast("🔒 Facture envoyée — verrouillée."); return; }
+  if(!P.id){ toast("Impossible : ligne sans identifiant."); return; }
+  if(!confirm("Retirer la prestation « "+(P.prestation||P.service||"")+" » ?")) return;
+  if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
+  showLoader("Suppression…");
+  apiCall({ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, ids:JSON.stringify([P.id]) })
+    .then(function(res){ if(res.error){ hideLoader(); toast("❌ "+res.error); return; }
+      B.prestations.splice(pi,1);
+      B.montant=0; B.forfait=0;
+      B.prestations.forEach(function(p){ B.montant+=(p.montant||0); if((p.montant||0)>B.forfait) B.forfait=(p.montant||0); });
+      B.montantFacture=(mf.regime==="ENFANTS_5ANS")? B.forfait : B.montant;
+      function majUI(){
+        if(!B.prestations.length){
+          D.benefs.splice(bi,1);
+          if(!D.benefs.length){ var idx=mf.dates.indexOf(D); if(idx>=0) mf.dates.splice(idx,1); }
+          _mfRecalcTotal(); _mfRenderBenefs();   // retour à la liste du mois
+        } else {
+          _mfRecalcTotal(); consulterBenef(di, bi);
+        }
+      }
+      // Il reste des prestations et le régime a un dossier -> régénérer l'attestation sur Drive
+      if(B.prestations.length && REGIMES_DOSSIER[mf.regime]){
+        showLoader("Mise à jour de l'attestation…");
+        _regenAttestationBenef(mf.regime, B, (B.data&&B.data["Date de prise en charge"])||D.date||"", mf.poste)
+          .then(function(r){ hideLoader(); toast((r&&r.ok&&!r.error)?"✖ Prestation retirée · attestation mise à jour":"✖ Prestation retirée (attestation non mise à jour)"); majUI(); })
+          .catch(function(){ hideLoader(); toast("✖ Prestation retirée (attestation non mise à jour)"); majUI(); });
+      } else {
+        hideLoader(); toast("✖ Prestation retirée"); majUI();
+      }
+    })
+    .catch(function(){ hideLoader(); toast("❌ Erreur réseau."); });
+}
+
 function _flushDossiers(){
   if(_flushing || !navigator.onLine || !APP.auth) return;
   _flushing=true;
@@ -4548,6 +5405,556 @@ function _flushDossiers(){
       }).catch(function(){ _flushing=false; _syncLoaderDone(); /* conserver, réessai plus tard */ });
     })(0);
   }).catch(function(){ _flushing=false; });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// RÉGIME CONTRIBUTIF — formulaire fluide (une seule page, non séquentiel)
+// Date → code + éligibilité → (photo + nom + Éligible) → carte → prestations → tickets
+// « Valider le patient » = enregistre + constitue le dossier (aucun récap).
+// ══════════════════════════════════════════════════════════════════════════
+function _ctbEsc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+
+// Bloc compact « Carte d'assuré » (photo sur place, pas d'aperçu)
+function _ctbBlocCarte(){
+  var wrap=document.createElement("div"); wrap.className="ctb-card"; wrap.id="ctbCarte";
+  function render(){
+    var has=!!APP._dossier_carteRecto;
+    wrap.innerHTML='<div class="ctb-photo-row"><div class="ctb-photo-txt">'+
+        '<div class="ctb-photo-t">🪪 Carte d\'assuré <span style="color:#999;font-weight:400">(facultatif)</span></div>'+
+        (has?'<div class="ctb-photo-ok">✓ Photo ajoutée</div>':'<div class="ctb-photo-sub">Photographier sur place</div>')+
+      '</div><button type="button" class="ctb-cam'+(has?' done':'')+'">'+(has?'✓':'📷')+'</button></div>'+
+      (has?'<button type="button" class="ctb-photo-del">✖ Retirer la photo</button>':'');
+    wrap.querySelector(".ctb-cam").onclick=function(){ _cameraUneImage({ cadreCarte:true, titre:"Carte d'assuré" }, function(b64){ APP._dossier_carteRecto=b64; render(); }); };
+    var del=wrap.querySelector(".ctb-photo-del"); if(del) del.onclick=function(){ APP._dossier_carteRecto=""; render(); };
+  }
+  render(); return wrap;
+}
+
+// Bloc compact « Ticket(s) de caisse » (plusieurs, pas d'aperçu — juste un compteur + puces)
+function _ctbBlocTickets(){
+  APP._dossier_tickets=APP._dossier_tickets||[];
+  var wrap=document.createElement("div"); wrap.className="ctb-card"; wrap.id="ctbTickets";
+  var fin=document.createElement("input"); fin.type="file"; fin.accept="image/*"; fin.multiple=true; fin.style.display="none";
+  function render(){
+    var n=(APP._dossier_tickets||[]).length, chips="";
+    for(var i=0;i<n;i++){ chips+='<span class="ctb-chip">Ticket '+(i+1)+' <b data-i="'+i+'">✖</b></span>'; }
+    wrap.innerHTML='<div class="ctb-photo-row"><div class="ctb-photo-txt">'+
+        '<div class="ctb-photo-t">🎫 Ticket(s) de caisse <span style="color:#999;font-weight:400">(facultatif)</span></div>'+
+        (n?'<div class="ctb-photo-ok">✓ '+n+' ajouté(s)</div>':'<div class="ctb-photo-sub">Un ou plusieurs</div>')+
+      '</div><div style="display:flex;gap:6px"><button type="button" class="ctb-cam2 ctb-imp">🖼️</button>'+
+        '<button type="button" class="ctb-cam">📷</button></div></div>'+
+      (n?'<div class="ctb-chips">'+chips+'</div>':'');
+    wrap.appendChild(fin);
+    wrap.querySelector(".ctb-cam").onclick=function(){ _cameraUneImage({ titre:"Ticket de caisse" }, function(b64){ APP._dossier_tickets.push(b64); render(); }); };
+    wrap.querySelector(".ctb-imp").onclick=function(){ fin.click(); };
+    Array.prototype.forEach.call(wrap.querySelectorAll(".ctb-chip b"), function(x){ x.onclick=function(){ APP._dossier_tickets.splice(parseInt(x.getAttribute("data-i"),10),1); render(); }; });
+  }
+  fin.addEventListener("change", function(){ var arr=fin.files?Array.prototype.slice.call(fin.files):[]; if(!arr.length) return;
+    (function next(i){ if(i>=arr.length){ fin.value=""; render(); return; } _imageVersBase64(arr[i],1600,function(b64){ APP._dossier_tickets.push(b64); next(i+1); }); })(0); });
+  render(); return wrap;
+}
+function _ctbDateFR(s){ var m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? (m[3]+"/"+m[2]+"/"+m[1]) : String(s||""); }
+function _ctbActeFields(){
+  var rk=(APP._ctb&&APP._ctb.regime)||"CLASSIQUE";
+  var fs=((APP.regimes[rk]&&APP.regimes[rk].fields)||[]).filter(function(f){ return f.list==="prestations"||f.qte||f.pu||f.montant; });
+  return { all:fs,
+    presta:fs.filter(function(f){return f.list==="prestations";})[0],
+    qte:fs.filter(function(f){return f.qte;})[0],
+    pu:fs.filter(function(f){return f.pu;})[0],
+    mt:fs.filter(function(f){return f.montant;})[0] };
+}
+
+function openContributif(regimeKey, prefill){
+  regimeKey=regimeKey||"CLASSIQUE";
+  APP.currentRegime=regimeKey; APP._editMode=false; APP._brouillonEnCours=(prefill&&prefill.id)||null;
+  if(!(prefill&&prefill._edition)) APP._editFacture=null;   // nouvelle saisie / brouillon : pas en mode édition
+  APP._ctb={ regime:regimeKey,
+             date:(prefill&&prefill.date)|| new Date().toISOString().slice(0,10),
+             code:(prefill&&prefill.code)||"", benef:(prefill&&prefill.benef)||null,
+             verifStatut:(prefill&&prefill.benef)?"valide":"" };
+  var sesame=(regimeKey==="SESAME"), enf=(regimeKey==="ENFANTS_5ANS");
+  if(sesame){ APP._cni_recto=""; APP._cni_verso=""; }
+  if(enf){ APP._dossier_extrait=""; }
+  if((sesame||enf) && !APP._ctb.benef) APP._ctb.benef={ _std:true };
+  var reveal = sesame || enf || !!APP._ctb.benef;
+  var rg=APP.regimes[regimeKey]||{};
+  var ti=$("contribTitle"); if(ti) ti.textContent=(rg.icone||"💳")+" "+(rg.titre||"Régime");
+  APP._dossier_tickets=[]; APP._dossier_carteRecto="";
+  var body=$("contribBody"); body.innerHTML="";
+  // 1) Date de prise en charge
+  body.appendChild(_ctbBloc("Date de prise en charge",
+    '<input id="ctbDate" type="date" value="'+APP._ctb.date+'" style="width:100%">'));
+  // 2) Patient
+  var pat=document.createElement("div"); pat.id="ctbPatient"; body.appendChild(pat);
+  // 3) Carte d'assuré — seulement pour les régimes à carte physique (pas Sésame/Enfants)
+  if(!sesame && !enf){ var carte=_ctbBlocCarte(); carte.style.display=(reveal?"":"none"); body.appendChild(carte); }
+  // 4) Prestations (+ Diagnostic + forfait pour les moins de 5 ans)
+  var sec=document.createElement("div"); sec.id="ctbPrestaSec"; sec.style.display=(reveal?"":"none");
+  if(enf){
+    sec.innerHTML='<div class="ctb-sec">PRESTATIONS ET MÉDICAMENTS</div><div id="ctbPrestas"></div>'+
+      '<button class="btn secondary" type="button" id="ctbAdd" style="width:100%;margin-top:4px">➕ Ajouter une prestation</button>'+
+      '<div id="ctbParts" class="ctb-parts"></div>';
+  } else {
+    sec.innerHTML='<div class="ctb-sec">INFORMATIONS PRESTATION</div><div id="ctbPrestas"></div>'+
+      '<button class="btn secondary" type="button" id="ctbAdd" style="width:100%;margin-top:4px">➕ Ajouter une prestation</button>'+
+      '<div id="ctbParts" class="ctb-parts"></div>';
+  }
+  body.appendChild(sec);
+  // 5) Tickets (facultatif, plusieurs possibles) — bloc compact
+  var tk=_ctbBlocTickets(); tk.style.display=(reveal?"":"none"); body.appendChild(tk);
+  // 6) Pied (boutons)
+  var ft=document.createElement("div"); ft.id="ctbFooter"; ft.style.display=(reveal?"":"none"); body.appendChild(ft);
+
+  $("ctbAdd").onclick=function(){ _ctbAddPresta(); };
+  $("ctbDate").addEventListener("change", function(){ APP._ctb.date=$("ctbDate").value; });
+  _ctbRenderPatient();
+  if(reveal){
+    var pres=(prefill&&prefill.prestas&&prefill.prestas.length)? prefill.prestas : [null];
+    pres.forEach(function(p){ _ctbAddPresta(p); });
+    _ctbRecalc(); _ctbFooter();
+  }
+  showScreen("screenContrib");
+}
+
+function _ctbBloc(titre, inner){
+  var d=document.createElement("div"); d.className="ctb-card";
+  d.innerHTML='<div class="ctb-label">'+titre+'</div>'+inner; return d;
+}
+
+function _ctbIsSesame(){ return (APP._ctb&&APP._ctb.regime)==="SESAME"; }
+function _ctbIsEnfant(){ return (APP._ctb&&APP._ctb.regime)==="ENFANTS_5ANS"; }
+var _ENF_FORFAIT=1400;
+function _ctbToISO(s){ s=String(s||""); var m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); if(m) return m[3]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2); var m2=s.match(/^\d{4}-\d{2}-\d{2}/); return m2?m2[0]:""; }
+function _ctbF(id,label,val,type){ return '<label style="font-size:12px;color:#555;display:block;margin-top:8px">'+label+'</label><input id="'+id+'" type="'+(type||"text")+'" value="'+_ctbEsc(val||"")+'" style="width:100%">'; }
+
+function _ctbRenderPatient(){
+  var box=$("ctbPatient"); if(!box) return;
+  // ── Moins de 5 ans : extrait de naissance (facultatif) + identité éditable ──
+  if(_ctbIsEnfant()){
+    var e=APP._ctb.benef||{}, hasEx=!!APP._dossier_extrait;
+    box.innerHTML='<div class="ctb-card"><div class="ctb-label">PATIENT <span style="color:#999;font-weight:400">(moins de 5 ans)</span></div>'+
+      '<div class="ctb-photo-row"><div class="ctb-photo-txt">'+
+        '<div class="ctb-photo-t">🧾 Extrait de naissance <span style="color:#999;font-weight:400">(facultatif)</span></div>'+
+        (hasEx?'<div class="ctb-photo-ok">✓ Pièce ajoutée</div>':'<div class="ctb-photo-sub">Extrait, carnet, PEV…</div>')+
+      '</div><div style="display:flex;gap:6px"><button type="button" class="ctb-cam2" id="ctbeImp">🖼️</button><button type="button" class="ctb-cam'+(hasEx?' done':'')+'" id="ctbeCam">'+(hasEx?'✓':'📷')+'</button></div></div>'+
+      (hasEx?'<button type="button" class="ctb-photo-del" id="ctbeDel">✖ Retirer la pièce</button>':'')+
+      _ctbF("ctbePrenom","Prénom(s)",e.prenom)+
+      _ctbF("ctbeNom","Nom",e.nom)+
+      '<div style="display:flex;gap:8px">'+
+        '<div style="flex:1"><label style="font-size:12px;color:#555;display:block;margin-top:8px">Date de naissance</label><input id="ctbeNaiss" type="date" value="'+_ctbEsc(_ctbToISO(e.naissance))+'" style="width:100%"></div>'+
+        '<div style="flex:0 0 90px"><label style="font-size:12px;color:#555;display:block;margin-top:8px">Sexe</label><select id="ctbeSexe" style="width:100%;padding:11px 10px;border:1px solid #d4dde2;border-radius:9px"><option value="">—</option><option value="M"'+(e.sexe==="M"?" selected":"")+'>M</option><option value="F"'+(e.sexe==="F"?" selected":"")+'>F</option></select></div>'+
+      '</div>'+
+      _ctbF("ctbeExtraitNo","N° carnet / N° Extrait / N° PEV",e.extraitNo)+
+      _ctbF("ctbeRegistre","N° dans le registre",e.registre)+
+      _ctbF("ctbeTel","N° Téléphone du parent",e.tel,"tel")+
+      '<input id="ctbeFile" type="file" accept="image/*" style="display:none">'+
+      '</div>';
+    $("ctbeCam").onclick=function(){ _cameraUneImage({ titre:"Extrait de naissance" }, function(b64){ APP._dossier_extrait=b64; _ctbRenderPatient(); }); };
+    $("ctbeImp").onclick=function(){ $("ctbeFile").click(); };
+    $("ctbeFile").addEventListener("change", function(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f) return; _imageVersBase64(f,1600,function(b64){ APP._dossier_extrait=b64; _ctbRenderPatient(); }); });
+    var ed=$("ctbeDel"); if(ed) ed.onclick=function(){ APP._dossier_extrait=""; _ctbRenderPatient(); };
+    return;
+  }
+  // ── Plan Sésame : identification par scan de la CNI (OCR) + champs éditables ──
+  if(_ctbIsSesame()){
+    var b=APP._ctb.benef||{}, hasCni=!!(APP._cni_recto && APP._cni_verso);
+    box.innerHTML='<div class="ctb-card"><div class="ctb-label">PATIENT <span style="color:#999;font-weight:400">(60 ans et +)</span></div>'+
+      '<div class="ctb-photo-row"><div class="ctb-photo-txt">'+
+        '<div class="ctb-photo-t">🪪 Carte d\'identité (recto + verso)</div>'+
+        (hasCni?'<div class="ctb-photo-ok">✓ CNI jointe</div>':'<div class="ctb-photo-sub">Scanner pour remplir automatiquement</div>')+
+      '</div><div style="display:flex;gap:6px"><button type="button" class="ctb-cam2" id="ctbsImp">🖼️</button><button type="button" class="ctb-cam" id="ctbsScan">📷</button></div></div>'+
+      '<div id="ctbsImpZone" style="display:none;margin-top:8px"></div>'+
+      '<div id="ctbsMsg" style="font-size:12px;margin-top:6px"></div>'+
+      _ctbF("ctbsPrenom","Prénom(s)",b.prenom)+
+      _ctbF("ctbsNom","Nom",b.nom)+
+      '<div style="display:flex;gap:8px">'+
+        '<div style="flex:1"><label style="font-size:12px;color:#555;display:block;margin-top:8px">Date de naissance</label><input id="ctbsNaiss" type="date" value="'+_ctbEsc(_ctbToISO(b.naissance))+'" style="width:100%"></div>'+
+        '<div style="flex:0 0 90px"><label style="font-size:12px;color:#555;display:block;margin-top:8px">Sexe</label><select id="ctbsSexe" style="width:100%;padding:11px 10px;border:1px solid #d4dde2;border-radius:9px"><option value="">—</option><option value="H"'+(b.sexe==="H"?" selected":"")+'>H</option><option value="F"'+(b.sexe==="F"?" selected":"")+'>F</option></select></div>'+
+      '</div>'+
+      _ctbF("ctbsCni","N° CNI",b.cni)+
+      _ctbF("ctbsTel","N° Téléphone",b.telephone,"tel")+
+      '</div>';
+    $("ctbsScan").onclick=function(){ APP._cni_recto=""; APP._cni_verso=""; _ouvrirCameraCNI(function(){ _ctbLireCNI(); }); };
+    $("ctbsImp").onclick=function(){ _ctbImportCNI(); };
+    return;
+  }
+  var b=APP._ctb.benef;
+  if(b){
+    var nom=((b.prenom||"")+" "+(b.nom||"")).trim().toUpperCase();
+    var photo=b.photo? '<img src="'+b.photo+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex:0 0 auto">'
+                     : '<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto">👤</div>';
+    box.innerHTML='<div class="ctb-card"><div class="ctb-label">PATIENT</div>'+
+      '<div style="display:flex;gap:12px;align-items:center">'+photo+
+        '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px;line-height:1.2">'+_ctbEsc(nom||"—")+'</div>'+
+        '<div style="margin-top:5px"><span style="font-size:12px;font-weight:700;color:#1a7a4a;background:#e8f5e9;border-radius:20px;padding:3px 11px">✔ Éligible</span>'+(b._manuel?' <span style="font-size:11px;color:#b9770e">(manuel)</span>':'')+'</div>'+
+        '<a href="javascript:void(0)" onclick="_ctbReset()" style="font-size:12px;color:#1a7a4a;display:inline-block;margin-top:7px;text-decoration:underline">Autre code d\'immatriculation</a></div>'+
+      '</div></div>';
+  } else {
+    box.innerHTML='<div class="ctb-card"><div class="ctb-label">PATIENT</div>'+
+      '<label style="font-size:12px;color:#555">Code d\'immatriculation</label>'+
+      '<input id="ctbCode" type="text" placeholder="EX. V8658Y2605" value="'+_ctbEsc(APP._ctb.code||"")+'" style="width:100%;text-transform:uppercase;font-weight:700;letter-spacing:.5px">'+
+      '<button class="btn" type="button" id="ctbVerif" style="width:100%;margin-top:10px">🛡️ Contrôler l\'éligibilité</button>'+
+      '<div id="ctbVerifMsg" style="font-size:12.5px;margin-top:8px"></div><div id="ctbManuelWrap"></div>'+
+      '</div>';
+    $("ctbVerif").onclick=function(){ _ctbVerifier(); };
+    $("ctbCode").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); _ctbVerifier(); } });
+  }
+}
+
+function _ctbIsoToFR(s){ s=String(s||""); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? (m[3]+"/"+m[2]+"/"+m[1]) : s; }
+
+// Lecture OCR de la CNI (Sésame) → remplit les champs d'identité du formulaire fluide
+function _ctbLireCNI(){
+  var msg=$("ctbsMsg");
+  if(!(APP._cni_recto && APP._cni_verso)){ _ctbRenderPatient(); return; }
+  if(!navigator.onLine){ _ctbRenderPatient(); var m0=$("ctbsMsg"); if(m0){ m0.style.color="#b9770e"; m0.textContent="📴 CNI jointe — OCR indisponible hors ligne. Saisissez l'identité à la main."; } return; }
+  if(msg){ msg.style.color="#555"; msg.textContent="🔎 Lecture de la CNI…"; }
+  apiCall({ action:"ocr_cni", email:APP.auth.email, pin:APP.auth.pin, regime:"SESAME", recto:APP._cni_recto||"", verso:APP._cni_verso||"" })
+    .then(function(res){
+      if(res.error){ _ctbRenderPatient(); var e=$("ctbsMsg"); if(e){ e.style.color="#c0392b"; e.textContent="❌ "+res.error+" — saisissez à la main."; } return; }
+      var d=res.data||{};
+      APP._ctb.benef={ _sesame:true, prenom:d.prenoms||"", nom:d.nom||"", naissance:d.naissance||"", naissanceFR:_ctbIsoToFR(d.naissance), sexe:d.sexe||"", cni:d.cni||"", telephone:"", photo:APP._cni_recto||"" };
+      _ctbRenderPatient();
+      var m2=$("ctbsMsg"); if(m2){ var manque=[]; if(!d.prenoms)manque.push("prénom"); if(!d.nom)manque.push("nom"); if(!d.naissance)manque.push("date de naissance");
+        if(manque.length){ m2.style.color="#b9770e"; m2.textContent="⚠️ Lecture partielle ("+manque.join(", ")+"). Complétez à la main."; } else { m2.style.color="#1a7a4a"; m2.textContent="✅ Identité remplie — vérifiez."; } }
+    })
+    .catch(function(){ _ctbRenderPatient(); var e=$("ctbsMsg"); if(e){ e.style.color="#c0392b"; e.textContent="❌ Lecture impossible — saisissez à la main."; } });
+}
+
+// Import de la CNI (recto + verso) → OCR dès que les deux sont fournis
+function _ctbImportCNI(){
+  var z=$("ctbsImpZone"); if(!z) return;
+  if(z.style.display!=="none"){ z.style.display="none"; return; }
+  z.style.display="block";
+  z.innerHTML='<div style="font-size:12px;color:#777;margin-bottom:4px">Importer la CNI (recto + verso) :</div>'+
+    '<label style="font-size:12px;display:block">Recto (face photo)</label><input id="ctbsImpR" type="file" accept="image/*" style="width:100%;font-size:12px;margin-bottom:6px">'+
+    '<label style="font-size:12px;display:block">Verso (lignes &lt;&lt;&lt;)</label><input id="ctbsImpV" type="file" accept="image/*" style="width:100%;font-size:12px">';
+  function maybe(){ if(APP._cni_recto && APP._cni_verso){ _ctbLireCNI(); } }
+  $("ctbsImpR").addEventListener("change", function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; _imageVersBase64(f,1600,function(b64){ APP._cni_recto=b64; maybe(); }); });
+  $("ctbsImpV").addEventListener("change", function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; _imageVersBase64(f,1600,function(b64){ APP._cni_verso=b64; maybe(); }); });
+}
+
+function _ctbReset(){ APP._ctb.benef=null; APP._ctb.verifStatut=""; _ctbRenderPatient();
+  ["ctbCarte","ctbPrestaSec","ctbTickets","ctbFooter"].forEach(function(id){ var e=$(id); if(e) e.style.display="none"; }); }
+
+function _ctbRevele(){
+  ["ctbCarte","ctbPrestaSec","ctbTickets","ctbFooter"].forEach(function(id){ var e=$(id); if(e) e.style.display=""; });
+  if(!$("ctbPrestas").children.length) _ctbAddPresta();
+  _ctbRecalc(); _ctbFooter();
+}
+
+function _ctbVerifier(){
+  var code=($("ctbCode").value||"").trim().toUpperCase(); APP._ctb.code=code;
+  var msg=$("ctbVerifMsg");
+  if(!code){ msg.style.color="#c0392b"; msg.textContent="Entrez le code d'immatriculation."; return; }
+  if(!navigator.onLine){ msg.style.color="#b9770e"; msg.textContent="📴 Pas de réseau — saisie manuelle possible."; _ctbManuel(); return; }
+  var btn=$("ctbVerif"); btn.disabled=true; msg.style.color="#555"; msg.textContent="🔎 Vérification en cours…";
+  apiCall({ action:"verif_csu", email:APP.auth.email, pin:APP.auth.pin, regime:APP._ctb.regime, code:code })
+    .then(function(res){ btn.disabled=false;
+      if(res.error){ msg.style.color="#c0392b"; msg.textContent="❌ "+res.error; return; }
+      if(res.indisponible){ msg.style.color="#b9770e"; msg.textContent="⚠️ "+(res.erreur||"Service indisponible."); _ctbManuel(); return; }
+      if(!res.trouve){ msg.style.color="#b9770e"; msg.textContent="⚠️ "+(res.motif||"Aucun bénéficiaire pour ce code."); _ctbManuel(); return; }
+      if(!res.valide){ msg.style.color="#c0392b"; msg.textContent="⛔ "+(res.motif||"Carte non valide — facturation bloquée."); return; }
+      // Vérifier que le code appartient bien au régime choisi
+      var attendu=_grpRegime(APP._ctb.regime);
+      var bonKey=_regimeDepuisLibelle((res.data&&res.data.regime)||"");
+      if(bonKey && attendu && bonKey!==attendu){
+        var bon=_grpNom(bonKey), actuel=(APP.regimes[APP._ctb.regime]&&APP.regimes[APP._ctb.regime].titre)||APP._ctb.regime;
+        msg.style.color="#c0392b";
+        msg.innerHTML='⛔ Ce code appartient au régime <b>'+bon+'</b>, pas à <b>'+actuel+'</b>.<br>'+
+          '<button class="btn secondary" type="button" id="ctbBascule" style="margin-top:8px;width:100%">↪ Basculer vers '+bon+'</button>';
+        var curDate=($("ctbDate")&&$("ctbDate").value)||"", dataVerif=res.data||{};
+        var bb=$("ctbBascule"); if(bb) bb.onclick=function(){
+          // On garde le code + la date et on reporte le patient déjà vérifié (pas de 2ᵉ contrôle)
+          openContributif(bonKey, { code: code, date: curDate, benef: dataVerif });
+        };
+        return;
+      }
+      APP._ctb.benef=res.data||{}; APP._ctb.verifStatut="valide";
+      _ctbRenderPatient(); _ctbRevele();
+    })
+    .catch(function(){ btn.disabled=false; msg.style.color="#b9770e"; msg.textContent="⚠️ Service injoignable."; _ctbManuel(); });
+}
+
+function _ctbManuel(){
+  var man=$("ctbManuelWrap"); if(!man || man._open) return; man._open=true;
+  man.innerHTML='<div style="border-top:1px dashed #ddd;margin-top:10px;padding-top:10px">'+
+    '<div style="font-size:12px;color:#777;margin-bottom:6px">Ou saisir les informations manuellement :</div>'+
+    '<input id="ctbmPrenom" placeholder="Prénom(s)" style="width:100%;margin-bottom:6px">'+
+    '<input id="ctbmNom" placeholder="Nom" style="width:100%;margin-bottom:6px">'+
+    '<input id="ctbmTel" placeholder="N° Téléphone" style="width:100%;margin-bottom:6px">'+
+    '<button class="btn secondary" type="button" id="ctbmOk" style="width:100%">Continuer en manuel</button></div>';
+  $("ctbmOk").onclick=function(){
+    var pr=($("ctbmPrenom").value||"").trim(), no=($("ctbmNom").value||"").trim();
+    if(!pr||!no){ toast("Prénom et nom requis."); return; }
+    APP._ctb.benef={ prenom:pr, nom:no, telephone:($("ctbmTel").value||"").trim(), code:APP._ctb.code, photo:"", _manuel:true };
+    APP._ctb.verifStatut="manuel"; _ctbRenderPatient(); _ctbRevele();
+  };
+}
+
+function _ctbAddPresta(data){
+  var wrap=document.createElement("div"); wrap.className="ctb-presta";
+  var dl=document.getElementById("dl_prestations");
+  if(!dl){ dl=document.createElement("datalist"); dl.id="dl_prestations"; (APP.referentiels.prestations||[]).forEach(function(v){ var o=document.createElement("option"); o.value=v; dl.appendChild(o); }); document.body.appendChild(dl); }
+  if(_ctbIsEnfant()){
+    // Moins de 5 ans : prestation / médicament + quantité (forfait unique par prise)
+    wrap.innerHTML='<label style="font-size:12px;color:#555">Prestation / médicament</label>'+
+      '<input class="ctbp-presta" list="dl_prestations" placeholder="Saisir la prestation" value="'+_ctbEsc((data&&data.presta)||"")+'" style="width:100%;margin-bottom:8px">'+
+      '<div style="display:flex;gap:10px;align-items:flex-end">'+
+        '<div style="flex:0 0 110px"><label style="font-size:12px;color:#555">Quantité</label>'+
+          '<input class="ctbp-qte" type="number" min="1" inputmode="numeric" value="'+_ctbEsc((data&&data.qte)||"1")+'" style="width:100%"></div>'+
+        '<div style="flex:1;font-size:11px;color:#999;padding-bottom:12px">Par défaut 1 — à ajuster pour un médicament</div>'+
+      '</div>'+
+      '<button class="ctbp-del" type="button" style="background:none;border:none;color:#c0392b;font-size:12px;margin-top:8px;cursor:pointer;padding:0">✖ Retirer</button>';
+    wrap.querySelector(".ctbp-presta").addEventListener("input", _ctbRefresh);
+    wrap.querySelector(".ctbp-qte").addEventListener("input", _ctbRefresh);
+    wrap.querySelector(".ctbp-del").onclick=function(){ wrap.remove(); if(!$("ctbPrestas").children.length) _ctbAddPresta(); _ctbRefresh(); };
+    $("ctbPrestas").appendChild(wrap); _ctbFooter(); return;
+  }
+  wrap.innerHTML=
+    '<label style="font-size:12px;color:#555">Prestation</label>'+
+    '<input class="ctbp-presta" list="dl_prestations" placeholder="Saisir la prestation" value="'+_ctbEsc((data&&data.presta)||"")+'" style="width:100%;margin-bottom:8px">'+
+    '<div style="display:flex;gap:8px">'+
+      '<div style="flex:1"><label style="font-size:12px;color:#555">Quantité</label>'+
+        '<input class="ctbp-qte" type="number" min="1" inputmode="numeric" value="'+_ctbEsc((data&&data.qte)||"1")+'" style="width:100%"></div>'+
+      '<div style="flex:1"><label style="font-size:12px;color:#555">Prix unitaire (F)</label>'+
+        '<input class="ctbp-pu" type="number" min="0" inputmode="numeric" value="'+_ctbEsc((data&&(data.pu||data.pu===0)?data.pu:""))+'" style="width:100%"></div>'+
+    '</div>'+
+    '<button class="ctbp-del" type="button" style="background:none;border:none;color:#c0392b;font-size:12px;margin-top:8px;cursor:pointer;padding:0">✖ Retirer cette prestation</button>';
+  var presta=wrap.querySelector(".ctbp-presta"), qte=wrap.querySelector(".ctbp-qte"), pu=wrap.querySelector(".ctbp-pu");
+  presta.addEventListener("change", function(){ var px=(APP.referentiels.prix||{})[presta.value]; if(px!==undefined && !pu.value){ pu.value=px; } _ctbRefresh(); });
+  qte.addEventListener("input", _ctbRefresh); pu.addEventListener("input", _ctbRefresh);
+  wrap.querySelector(".ctbp-del").onclick=function(){ wrap.remove(); if(!$("ctbPrestas").children.length) _ctbAddPresta(); _ctbRefresh(); };
+  $("ctbPrestas").appendChild(wrap);
+  _ctbFooter();
+}
+
+function _ctbLignes(){
+  var out=[], pr=$("ctbPrestas"); if(!pr) return out;
+  Array.prototype.forEach.call(pr.children, function(w){
+    var pe=w.querySelector(".ctbp-presta"), qe=w.querySelector(".ctbp-qte"), ue=w.querySelector(".ctbp-pu");
+    var presta=pe?(pe.value||"").trim():"";
+    var qte=qe?(parseFloat(qe.value)||0):0;
+    var pu=ue?(parseFloat(ue.value)||0):0;
+    if(presta || qte>0 || pu>0) out.push({ presta:presta, qte:qte, pu:pu });
+  });
+  return out;
+}
+function _ctbComplet(){
+  return _ctbIsEnfant()
+    ? _ctbLignes().filter(function(l){ return l.presta; }).length>0
+    : _ctbLignes().filter(function(l){ return l.presta && l.qte>0 && l.pu>0; }).length>0;
+}
+function _ctbRecalc(){
+  var box=$("ctbParts"); if(!box) return;
+  if(_ctbIsEnfant()){
+    box.innerHTML='<div class="ctb-part"><span>Forfait (moins de 5 ans)</span><b style="color:#1a7a4a">'+fmtFCFA(_ENF_FORFAIT)+'</b></div>'+
+      '<div class="ctb-part" style="font-size:11.5px;color:#888"><span>Pris en charge à 100 % — un seul forfait par prise</span></div>';
+    return;
+  }
+  var lignes=_ctbLignes(), brut=0; lignes.forEach(function(l){ brut+=(l.qte*l.pu)||0; });
+  var taux=_tauxCSUClient((APP._ctb&&APP._ctb.regime)||"CLASSIQUE"), csu=Math.round(brut*taux), pat=Math.round(brut*(1-taux));
+  box.innerHTML=
+    '<div class="ctb-part"><span>Part SEN-CSU ('+Math.round(taux*100)+' %)</span><b style="color:#1a7a4a">'+fmtFCFA(csu)+'</b></div>'+
+    '<div class="ctb-part"><span>Part patient ('+Math.round((1-taux)*100)+' %)</span><b>'+fmtFCFA(pat)+'</b></div>';
+}
+function _ctbRefresh(){ _ctbRecalc(); _ctbFooter(); }
+
+function _ctbFooter(){
+  var ft=$("ctbFooter"); if(!ft) return;
+  var h="", edit=!!APP._editFacture;
+  if(edit){
+    h+='<button class="btn" type="button" onclick="_ctbValider()" style="width:100%;margin-top:4px"'+(_ctbComplet()?'':' disabled')+'>💾 Enregistrer la correction</button>';
+    h+='<div id="ctbErr" class="err" style="margin-top:8px;color:#c0392b"></div>';
+    ft.innerHTML=h; return;
+  }
+  if(_ctbComplet()){
+    h+='<button class="btn" type="button" onclick="_ctbValider()" style="width:100%;margin-top:4px">✅ Valider le patient</button>'+
+       '<button class="btn secondary" type="button" onclick="_ctbBrouillon()" style="width:100%;margin-top:8px">💾 Enregistrer à compléter</button>';
+  } else {
+    h+='<div style="border:1px solid #f0e0c0;background:#fffaf2;border-radius:10px;padding:10px;font-size:12.5px;color:#9a6a00;margin-top:4px">📋 Le dossier sera enregistré « à compléter » (aucune prestation saisie). Il faudra le compléter depuis « Mes factures » avant d\'envoyer la facture.</div>'+
+       '<button class="btn" type="button" onclick="_ctbBrouillon()" style="width:100%;margin-top:10px">💾 Enregistrer à compléter</button>';
+  }
+  h+='<div id="ctbErr" class="err" style="margin-top:8px;color:#c0392b"></div>';
+  ft.innerHTML=h;
+}
+
+// Construit le contexte dossier (carte + attestation) — repris de _demarrerDossier.
+function _ctbCtx(regime, poste, patient, actes, acteFields, datePrise){
+  var b=APP._ctb.benef||{};
+  var code=_codePatient(regime, patient);
+  var age=""; try{ var _a=_ageDepuis(patient["Date de naissance"]||"", datePrise); if(_a!==null && _a!==undefined && !isNaN(_a)) age=_a; }catch(e){}
+  var cardInfo={ nom:patient["Nom"]||b.nom||"", prenoms:patient["Prénom(s)"]||b.prenom||"", code:code, photo:(b&&b.photo)?b.photo:"" };
+  var sup=[]; function _sup(l,v){ if(v!==undefined && v!==null && String(v).trim()!=="") sup.push([l,String(v).trim()]); }
+  var _tx=(b.taux!=null && b.taux!=="") ? (String(b.taux).indexOf("%")>=0 ? String(b.taux) : (b.taux+"%")) : "";
+  _sup("N° CNI", b.cni||"");
+  _sup("Date de naissance", b.naissanceFR||patient["Date de naissance"]||"");
+  _sup("Sexe", b.sexeLibelle||patient["Sexe (H/F)"]||"");
+  _sup("Lieu de naissance", b.lieuNaissance);
+  _sup("N° Téléphone", b.telephone||patient["N° Téléphone"]||"");
+  _sup("Adresse", b.adresse);
+  _sup("Régime", b.regime);
+  _sup("Taux de prise en charge", _tx);
+  _sup("Période de couverture", (b.dateDebut && b.dateFin) ? (b.dateDebut+"  →  "+b.dateFin) : "");
+  _sup("Jours restants", (b.joursRestants!=null && b.joursRestants!=="") ? (b.joursRestants+" jour(s)") : "");
+  cardInfo.infosSup=sup;
+  var taux=TAUX_CSU_DOSSIER[regime]||1;
+  var fQ=(acteFields||[]).filter(function(f){return f.qte;})[0], fPU=(acteFields||[]).filter(function(f){return f.pu;})[0],
+      fMT=(acteFields||[]).filter(function(f){return f.montant;})[0], fPR=(acteFields||[]).filter(function(f){return f.list==="prestations";})[0];
+  var dateAff=patient["Date de prise en charge"]||datePrise||"";
+  var lignes, attTotaux=null;
+  if(regime==="ENFANTS_5ANS"){
+    // Moins de 5 ans : prestations détaillées avec tirets, forfait unique au TOTAL.
+    var forfait=parseFloat(String(patient["Montant Total"]||"").replace(/[^\d.]/g,""))||_ENF_FORFAIT;
+    lignes=(actes||[]).map(function(a){ return { date:dateAff, nature:fPR?(a[fPR.name]||""):"", paye:"—", facture:"—" }; }).filter(function(L){ return L.nature; });
+    if(!lignes.length) lignes=[{ date:dateAff, nature:"Forfait prise en charge (moins de 5 ans)", paye:"—", facture:"—" }];
+    attTotaux={ paye:0, facture:forfait };
+  } else {
+    lignes=(actes||[]).map(function(a){
+      var q=fQ?parseFloat(a[fQ.name]||"0"):0, pu=fPU?parseFloat(a[fPU.name]||"0"):0;
+      var brut=(q&&pu)? q*pu : (fMT?parseFloat(a[fMT.name]||"0"):0); if(isNaN(brut)) brut=0;
+      var net=Math.round(brut*taux), paye=Math.round(brut-net);
+      return { date:dateAff, nature:fPR?(a[fPR.name]||""):"", paye:paye, facture:net };
+    });
+  }
+  var attInfo={ assureur:"SEN-CSU", numero:_prochainNumeroAttestation(), prenoms:cardInfo.prenoms, nom:cardInfo.nom, code:code, age:age, sexe:patient["Sexe (H/F)"]||patient["Sexe (M/F)"]||"" };
+  return { id:"DOS_"+uid(), regime:regime, poste:poste, patient:patient, cardInfo:cardInfo, lignes:lignes, attTotaux:attTotaux, attInfo:attInfo };
+}
+
+// Génère carte + attestation, joint les photos déjà prises, enregistre/envoie (sans écran récap).
+function _ctbEnvoyerDossier(ctx){
+  var pCarte=REGIMES_CARTE[ctx.regime]? _genCarte(ctx.cardInfo) : Promise.resolve("");
+  var pAtt=_genAttestation(ctx.attInfo, ctx.lignes, ctx.attTotaux);
+  return Promise.all([pCarte, pAtt]).then(function(r){
+    var ses=(ctx.regime==="SESAME"), enf=(ctx.regime==="ENFANTS_5ANS");
+    var images={ carte:r[0]||"", attestation:r[1]||"", tickets:(APP._dossier_tickets||[]).slice(),
+                 extrait:(enf?(APP._dossier_extrait||""):""),
+                 carteRecto:((ses||enf)?"":(APP._dossier_carteRecto||"")),
+                 cniRecto:(ses?(APP._cni_recto||""):""), cniVerso:(ses?(APP._cni_verso||""):"") };
+    var d={ id:ctx.id, regime:ctx.regime, poste:ctx.poste, patient:ctx.patient, attInfo:ctx.attInfo, images:images, cree:Date.now() };
+    return _idbPut(d).then(function(){
+      if(!navigator.onLine) return { offline:true };
+      return _envoyerDossier(d).then(function(res){ if(res && res.ok && !res.error) _idbDel(d.id); return res; });
+    });
+  });
+}
+
+function _ctbValider(){
+  var err=$("ctbErr"); if(err){ err.style.color="#c0392b"; err.textContent=""; }
+  var date=$("ctbDate").value; if(!date){ if(err) err.textContent="Indiquez la date de prise en charge."; return; }
+  var regime=APP._ctb.regime, dFR=_ctbDateFR(date), AF=_ctbActeFields();
+  var patient={}, actes;
+  if(_ctbIsEnfant()){
+    var lignesE=_ctbLignes().filter(function(l){ return l.presta; });
+    if(!lignesE.length){ if(err) err.textContent="Ajoutez au moins une prestation / médicament."; return; }
+    var epr=($("ctbePrenom").value||"").trim(), eno=($("ctbeNom").value||"").trim();
+    if(!epr||!eno){ if(err) err.textContent="Renseignez le prénom et le nom de l'enfant."; return; }
+    var enaISO=$("ctbeNaiss").value||"";
+    if(enaISO){ var eage=calculerAge(enaISO, _ctbToISO(dFR)||date); if(eage!=null && eage>=5){ if(err) err.textContent="⛔ Cet enfant a "+eage+" ans (régime réservé aux moins de 5 ans)."; return; } }
+    patient["N° dans le registre"]=($("ctbeRegistre").value||"").trim();
+    patient["Prénom(s)"]=epr; patient["Nom"]=eno;
+    patient["Date de naissance"]=enaISO? _ctbIsoToFR(enaISO):"";
+    patient["Sexe (M/F)"]=$("ctbeSexe").value||"";
+    patient["N° Matricule / Extrait naissance"]=($("ctbeExtraitNo").value||"").trim();
+    patient["N° Téléphone"]=($("ctbeTel").value||"").trim();
+    patient["Date de prise en charge"]=dFR;
+    patient["Forfait"]="Forfait PS 1400";
+    patient["Montant Total"]=String(_ENF_FORFAIT);
+    actes=lignesE.map(function(l){ var nm=l.presta+((l.qte&&l.qte>1)?(" × "+l.qte):""); var a={}; if(AF.presta) a[AF.presta.name]=nm; if(AF.mt) a[AF.mt.name]=String(_ENF_FORFAIT); return a; });
+    APP._ctb.benef={ _std:true, prenom:epr, nom:eno, naissance:enaISO, sexe:patient["Sexe (M/F)"], extraitNo:patient["N° Matricule / Extrait naissance"], registre:patient["N° dans le registre"], tel:patient["N° Téléphone"] };
+  } else if(_ctbIsSesame()){
+    var lignesS=_ctbLignes().filter(function(l){ return l.presta && l.qte>0 && l.pu>0; });
+    if(!lignesS.length){ if(err) err.textContent="Ajoutez au moins une prestation complète."; return; }
+    var pr=($("ctbsPrenom").value||"").trim(), no=($("ctbsNom").value||"").trim();
+    if(!pr||!no){ if(err) err.textContent="Renseignez le prénom et le nom (scannez la CNI ou saisissez à la main)."; return; }
+    var naissISO=$("ctbsNaiss").value||"";
+    if(naissISO){ var age=calculerAge(naissISO, _ctbToISO(dFR)||date); if(age!=null && age<60){ if(err) err.textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; } }
+    patient["Prénom(s)"]=pr; patient["Nom"]=no;
+    patient["Date de naissance"]=naissISO? _ctbIsoToFR(naissISO):"";
+    patient["Sexe (H/F)"]=$("ctbsSexe").value||"";
+    patient["N° CNI"]=($("ctbsCni").value||"").trim();
+    patient["N° Téléphone"]=($("ctbsTel").value||"").trim();
+    patient["Date de prise en charge"]=dFR;
+    APP._ctb.benef={ _sesame:true, prenom:pr, nom:no, naissance:naissISO, naissanceFR:patient["Date de naissance"], sexe:patient["Sexe (H/F)"], cni:patient["N° CNI"], telephone:patient["N° Téléphone"], photo:APP._cni_recto||"" };
+    actes=lignesS.map(function(l){ var a={}; if(AF.presta) a[AF.presta.name]=l.presta; if(AF.qte) a[AF.qte.name]=String(l.qte); if(AF.pu) a[AF.pu.name]=String(l.pu); if(AF.mt) a[AF.mt.name]=String(Math.round(l.qte*l.pu)); return a; });
+  } else {
+    var b=APP._ctb.benef;
+    if(!b){ if(err) err.textContent="Vérifiez d'abord l'éligibilité."; return; }
+    var lignes=_ctbLignes().filter(function(l){ return l.presta && l.qte>0 && l.pu>0; });
+    if(!lignes.length){ if(err) err.textContent="Ajoutez au moins une prestation complète."; return; }
+    var champCode=(CHAMP_CODE_VERIF[regime])||"N° Matricule / Code Bénéficiaire";
+    patient["Prénom(s)"]=b.prenom||""; patient["Nom"]=b.nom||"";
+    patient["Date de naissance"]=b.naissanceFR||""; patient["Sexe (H/F)"]=b.sexe||"";
+    patient["N° Téléphone"]=b.telephone||"";
+    patient[champCode]=b.code||APP._ctb.code||"";
+    patient["Date de prise en charge"]=dFR;
+    actes=lignes.map(function(l){ var a={}; if(AF.presta) a[AF.presta.name]=l.presta; if(AF.qte) a[AF.qte.name]=String(l.qte); if(AF.pu) a[AF.pu.name]=String(l.pu); if(AF.mt) a[AF.mt.name]=String(Math.round(l.qte*l.pu)); return a; });
+  }
+  var poste=APP.user.poste;
+  // Mode édition (correction d'une facture rejetée) : on remplace les lignes existantes
+  if(APP._editFacture){ _ctbSaveEdit(patient, actes, poste, AF.all); return; }
+  var q=getQueue();
+  actes.forEach(function(acte){ var data={}; Object.keys(patient).forEach(function(k){ data[k]=patient[k]; }); Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
+    q.push({ id:uid(), regime:regime, poste:poste, data:data }); });
+  setQueue(q); updateSyncUI();
+  if(APP._brouillonEnCours){ _supprimerBrouillon(APP._brouillonEnCours); APP._brouillonEnCours=null; }
+  showLoader("Enregistrement du dossier…");
+  var ctx=_ctbCtx(regime, poste, patient, actes, AF.all, dFR);
+  _ctbEnvoyerDossier(ctx).then(function(res){
+    hideLoader();
+    if(res && res.offline) toast("📁 Enregistré — dossier en attente de réseau");
+    else if(res && res.ok && !res.error){ if(res.warn) toast("⚠️ PDF non assemblé — images sauvées sur Drive",5000); else toast("✅ Patient validé — dossier envoyé"); }
+    else toast("✅ Patient enregistré — dossier conservé localement (réessai auto)");
+    trySync(false); showScreen("screenHome");
+  }).catch(function(){ hideLoader(); toast("✅ Patient enregistré — dossier conservé localement"); trySync(false); showScreen("screenHome"); });
+}
+
+// Enregistre une MODIFICATION depuis le formulaire fluide (remplace les lignes + régénère l'attestation)
+function _ctbSaveEdit(patient, actes, poste, acteFields){
+  var ef=APP._editFacture||{}, regime=APP.currentRegime;
+  var setErr=function(t){ var e=$("ctbErr"); if(e){ e.style.color="#c0392b"; e.textContent=t; } };
+  if(!navigator.onLine){ setErr("📴 Connexion requise pour enregistrer la correction."); return; }
+  var entries=actes.map(function(acte){ var data={}; Object.keys(patient).forEach(function(k){ data[k]=patient[k]; }); Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
+    return { id:uid(), regime:regime, poste:poste, data:data }; });
+  function finir(){ APP._editFacture=null; if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome"); }
+  showLoader("Enregistrement de la correction…");
+  apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
+            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), entries:JSON.stringify(entries) })
+    .then(function(res){
+      if(res.error){ hideLoader(); setErr("❌ "+res.error); return; }
+      if(REGIMES_DOSSIER[regime]){
+        showLoader("Mise à jour de l'attestation…");
+        var d=_docsAttestation(regime, patient, actes, acteFields, patient["Date de prise en charge"]||"");
+        _genAttestation(d.attInfo, d.lignes, d.attTotaux).then(function(att){
+          return apiCall({ action:"dossier_maj_docs", email:APP.auth.email, pin:APP.auth.pin, regime:regime,
+            poste:poste||APP.user.poste||"", nom:patient["Nom"]||"", prenom:patient["Prénom(s)"]||"",
+            code:d.code||"", date:(patient["Date de prise en charge"]||""), attestation:att });
+        }).then(function(r){ hideLoader(); toast((r&&r.ok&&!r.error)?"✅ Correction + attestation mises à jour":"✅ Correction enregistrée"); finir(); })
+        .catch(function(){ hideLoader(); toast("✅ Correction enregistrée (attestation non mise à jour)"); finir(); });
+      } else { hideLoader(); toast("✅ Correction enregistrée"); finir(); }
+    })
+    .catch(function(){ hideLoader(); setErr("❌ Erreur réseau — correction non enregistrée."); });
+}
+
+function _ctbBrouillon(){
+  var b=APP._ctb.benef, date=$("ctbDate").value||"", prestas=_ctbLignes();
+  var g=function(id){ var e=$(id); return e? (e.value||"").trim() : ""; };
+  if(_ctbIsSesame()){
+    b={ _sesame:true, prenom:g("ctbsPrenom"), nom:g("ctbsNom"), naissance:g("ctbsNaiss"),
+        naissanceFR:_ctbIsoToFR(g("ctbsNaiss")), sexe:g("ctbsSexe"), cni:g("ctbsCni"), telephone:g("ctbsTel") };
+  } else if(_ctbIsEnfant()){
+    b={ _std:true, prenom:g("ctbePrenom"), nom:g("ctbeNom"), naissance:g("ctbeNaiss"), sexe:g("ctbeSexe"),
+        extraitNo:g("ctbeExtraitNo"), registre:g("ctbeRegistre"), tel:g("ctbeTel") };
+  }
+  var benefLite=null; if(b){ benefLite={}; Object.keys(b).forEach(function(k){ if(k!=="photo") benefLite[k]=b[k]; }); }
+  var id=APP._brouillonEnCours || ("BR_"+uid());
+  var list=_getBrouillons().filter(function(x){ return x.id!==id; });
+  list.unshift({ id:id, regime:(APP._ctb&&APP._ctb.regime)||"CLASSIQUE", contrib:true, cree:Date.now(),
+                 nom:(b&&b.nom)||"", prenom:(b&&b.prenom)||"",
+                 date:date, code:(b&&b.code)||APP._ctb.code||"", benef:benefLite, prestas:prestas });
+  _setBrouillons(list); APP._brouillonEnCours=null;
+  toast("📝 Brouillon enregistré — à compléter dans « Mes factures »");
+  showScreen("screenHome");
 }
 
 </script>
