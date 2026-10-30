@@ -3976,7 +3976,9 @@ function saveEntry(closeAfter){
     q.push({id:uid(), regime:APP.currentRegime, poste:poste, data:data});
   });
   setQueue(q); updateSyncUI(); $("formErr").textContent="";
+  var _etaitBrouillon=!!APP._brouillonEnCours;
   if(APP._brouillonEnCours){ _supprimerBrouillon(APP._brouillonEnCours); APP._brouillonEnCours=null; }
+  if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} }   // rafraîchir le compteur « à compléter »
   toast("💾 "+actes.length+" prestation(s) enregistrée(s) ("+q.length+" en attente)");
   trySync(false);
   // Régimes à dossier médical : on enchaîne sur la constitution du dossier.
@@ -5185,15 +5187,18 @@ function modifierFacture(di, bi){
   var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
   if(!_benefEditable(B) && !B.hasRejet){ toast("🔒 Facture envoyée — verrouillée."); return; }
   if(!navigator.onLine){ toast("📴 Connexion requise pour modifier."); return; }
-  var ids=(B.prestations||[]).map(function(p){ return p.id; }).filter(Boolean);
+  var prest=(B.prestations||[]);
+  var ids=prest.map(function(p){ return p.id; }).filter(Boolean);
+  // Lignes sans « ID saisie » (anciennes données) -> référence par n° de ligne pour le remplacement
+  var refs=prest.filter(function(p){ return !p.id && p.ligne; }).map(function(p){ return { s:(p.regimeSrc||mf.regime), l:p.ligne, code:B.code||"" }; });
   // Formulaire fluide (identique à la facturation) pour les régimes concernés
   if(_ctbEstFluide(mf.regime)){
     openContributif(mf.regime, _ctbPrefillBenef(mf.regime, D, B));
-    APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids };
+    APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids, refs:refs };
     var ti=$("contribTitle"); if(ti) ti.textContent="✏️ Corriger — "+(((B.prenom||"")+" "+(B.nom||"")).trim()||ti.textContent);
     return;
   }
-  APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids };
+  APP._editFacture={ regime:mf.regime, moisKey:mf.moisKey, label:mf.label, poste:mf.poste, ids:ids, refs:refs };
   openForm(mf.regime, false, true);   // edition=true : formulaire seul, pas d'assistant
   _prefillEdition(B);
 }
@@ -5316,7 +5321,7 @@ function _enregistrerModification(patient, actes, poste){
   }
   showLoader("Enregistrement des modifications…");
   apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
-            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), entries:JSON.stringify(entries) })
+            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), refs:JSON.stringify(ef.refs||[]), entries:JSON.stringify(entries) })
     .then(function(res){
       if(res.error){ hideLoader(); $("formErr").textContent="❌ "+res.error; return; }
       // Régénérer l'attestation (régimes à dossier) et la remplacer sur Drive (photos conservées)
@@ -5340,13 +5345,17 @@ function _enregistrerModification(patient, actes, poste){
 function supprimerFacture(di, bi){
   var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
   if(!_benefEditable(B)){ toast("🔒 Facture envoyée — verrouillée."); return; }
-  var ids=(B.prestations||[]).map(function(p){ return p.id; }).filter(Boolean);
-  if(!ids.length){ toast("Impossible : prestations sans identifiant."); return; }
+  var prest=(B.prestations||[]);
+  var ids=prest.map(function(p){ return p.id; }).filter(Boolean);
+  // Lignes sans « ID saisie » (anciennes données) -> suppression de secours par n° de ligne
+  var refs=prest.filter(function(p){ return !p.id && p.ligne; }).map(function(p){ return { s:(p.regimeSrc||mf.regime), l:p.ligne, code:B.code||"" }; });
+  var nb=ids.length+refs.length;
+  if(!nb){ toast("Impossible : lignes introuvables."); return; }
   var nom=((B.prenom||"")+" "+(B.nom||"")).trim();
-  if(!confirm("Supprimer définitivement la facture de "+(nom||"ce bénéficiaire")+"\n("+ids.length+" prestation(s)) ?\nCette action est irréversible.")) return;
+  if(!confirm("Supprimer définitivement la facture de "+(nom||"ce bénéficiaire")+"\n("+nb+" prestation(s)) ?\nCette action est irréversible.")) return;
   if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
   showLoader("Suppression…");
-  apiCall({ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, ids:JSON.stringify(ids) })
+  apiCall({ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, ids:JSON.stringify(ids), refs:JSON.stringify(refs) })
     .then(function(res){ hideLoader(); if(res.error){ toast("❌ "+res.error); return; }
       toast("🗑️ Facture supprimée"); ouvrirMoisFacture(mf.regime, mf.moisKey, mf.label); })
     .catch(function(){ hideLoader(); toast("❌ Erreur réseau."); });
@@ -5356,12 +5365,17 @@ function retirerPrestation(di, bi, pi){
   var mf=APP._mf; if(!mf) return; var D=mf.dates[di]; var B=D&&D.benefs[bi]; if(!B) return;
   var P=B.prestations[pi]; if(!P) return;
   if(!_prestEditable(B,P)){ toast("🔒 Facture envoyée — verrouillée."); return; }
-  if(!P.id){ toast("Impossible : ligne sans identifiant."); return; }
+  if(!P.id && !P.ligne){ toast("Impossible : ligne introuvable."); return; }
   if(!confirm("Retirer la prestation « "+(P.prestation||P.service||"")+" » ?")) return;
   if(!navigator.onLine){ toast("📴 Connexion requise."); return; }
   showLoader("Suppression…");
-  apiCall({ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey, ids:JSON.stringify([P.id]) })
+  var _supp={ action:"lignes_supprimer", email:APP.auth.email, pin:APP.auth.pin, regime:mf.regime, moisKey:mf.moisKey };
+  if(P.id) _supp.ids=JSON.stringify([P.id]); else _supp.refs=JSON.stringify([{ s:(P.regimeSrc||mf.regime), l:P.ligne, code:B.code||"" }]);
+  var _parLigne=!P.id;   // suppression de secours par n° de ligne (anciennes données)
+  apiCall(_supp)
     .then(function(res){ if(res.error){ hideLoader(); toast("❌ "+res.error); return; }
+      // Par n° de ligne : les numéros des autres lignes ont pu se décaler -> on recharge le mois
+      if(_parLigne){ hideLoader(); toast("✖ Prestation retirée"); ouvrirMoisFacture(mf.regime, mf.moisKey, mf.label); return; }
       B.prestations.splice(pi,1);
       B.montant=0; B.forfait=0;
       B.prestations.forEach(function(p){ B.montant+=(p.montant||0); if((p.montant||0)>B.forfait) B.forfait=(p.montant||0); });
@@ -5897,7 +5911,10 @@ function _ctbValider(){
   actes.forEach(function(acte){ var data={}; Object.keys(patient).forEach(function(k){ data[k]=patient[k]; }); Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
     q.push({ id:uid(), regime:regime, poste:poste, data:data }); });
   setQueue(q); updateSyncUI();
+  var _etaitBrouillon=!!APP._brouillonEnCours;
   if(APP._brouillonEnCours){ _supprimerBrouillon(APP._brouillonEnCours); APP._brouillonEnCours=null; }
+  // Un brouillon vient d'être complété : rafraîchir « Mes factures » (compteur « à compléter »)
+  if(_etaitBrouillon){ try{ if($("csuPanelMes") && $("csuPanelMes").style.display!=="none") mfCharger(); }catch(e){} }
   showLoader("Enregistrement du dossier…");
   var ctx=_ctbCtx(regime, poste, patient, actes, AF.all, dFR);
   _ctbEnvoyerDossier(ctx).then(function(res){
@@ -5906,7 +5923,8 @@ function _ctbValider(){
     else if(res && res.ok && !res.error){ if(res.warn) toast("⚠️ PDF non assemblé — images sauvées sur Drive",5000); else toast("✅ Patient validé — dossier envoyé"); }
     else toast("✅ Patient enregistré — dossier conservé localement (réessai auto)");
     trySync(false); showScreen("screenHome");
-  }).catch(function(){ hideLoader(); toast("✅ Patient enregistré — dossier conservé localement"); trySync(false); showScreen("screenHome"); });
+    if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} }
+  }).catch(function(){ hideLoader(); toast("✅ Patient enregistré — dossier conservé localement"); trySync(false); showScreen("screenHome"); if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} } });
 }
 
 // Enregistre une MODIFICATION depuis le formulaire fluide (remplace les lignes + régénère l'attestation)
@@ -5919,7 +5937,7 @@ function _ctbSaveEdit(patient, actes, poste, acteFields){
   function finir(){ APP._editFacture=null; if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome"); }
   showLoader("Enregistrement de la correction…");
   apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
-            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), entries:JSON.stringify(entries) })
+            regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), refs:JSON.stringify(ef.refs||[]), entries:JSON.stringify(entries) })
     .then(function(res){
       if(res.error){ hideLoader(); setErr("❌ "+res.error); return; }
       if(REGIMES_DOSSIER[regime]){
