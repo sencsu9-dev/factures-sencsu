@@ -3965,6 +3965,10 @@ function saveEntry(closeAfter){
 
   var posteSel=$("fieldPoste"), poste=posteSel?posteSel.value:APP.user.poste;
 
+  // Anti double-enregistrement (2ᵉ clic rapide ignoré)
+  if(APP._saving){ return; }
+  APP._saving=true;
+
   // ── Mode MODIFIER : remplacer la facture existante (pas de file, pas de dossier) ──
   if(APP._editMode){ _enregistrerModification(patient, actes, poste); return; }
 
@@ -3982,6 +3986,7 @@ function saveEntry(closeAfter){
   toast("💾 "+actes.length+" prestation(s) enregistrée(s) ("+q.length+" en attente)");
   trySync(false);
   // Régimes à dossier médical : on enchaîne sur la constitution du dossier.
+  setTimeout(function(){ APP._saving=false; }, 1500);   // réarmement après la saisie
   if(REGIMES_DOSSIER[APP.currentRegime]){
     _demarrerDossier({ regime:APP.currentRegime, poste:poste, patient:patient, actes:actes,
                        acteFields:(APP._csuActeFields||[]).slice(), datePrise:datePrise, closeAfter:closeAfter });
@@ -5306,7 +5311,7 @@ function _docsAttestation(regime, patient, actes, acteFields, datePrise){
 }
 
 function _enregistrerModification(patient, actes, poste){
-  if(!navigator.onLine){ $("formErr").textContent="📴 Connexion requise pour enregistrer la modification."; return; }
+  if(!navigator.onLine){ APP._saving=false; $("formErr").textContent="📴 Connexion requise pour enregistrer la modification."; return; }
   var ef=APP._editFacture||{}, regime=APP.currentRegime;
   var acteFields=(APP._csuActeFields||[]).slice();
   var entries=actes.map(function(acte){
@@ -5315,7 +5320,7 @@ function _enregistrerModification(patient, actes, poste){
     return { id:uid(), regime:regime, poste:poste, data:data };
   });
   function finir(){
-    APP._editMode=false; APP._editFacture=null;
+    APP._saving=false; APP._editMode=false; APP._editFacture=null;
     var bv=$("btnValiderPatient"); if(bv) bv.textContent="💾 Valider le patient";
     if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome");
   }
@@ -5323,7 +5328,7 @@ function _enregistrerModification(patient, actes, poste){
   apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
             regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), refs:JSON.stringify(ef.refs||[]), entries:JSON.stringify(entries) })
     .then(function(res){
-      if(res.error){ hideLoader(); $("formErr").textContent="❌ "+res.error; return; }
+      if(res.error){ APP._saving=false; hideLoader(); $("formErr").textContent="❌ "+res.error; return; }
       // Régénérer l'attestation (régimes à dossier) et la remplacer sur Drive (photos conservées)
       if(REGIMES_DOSSIER[regime]){
         showLoader("Mise à jour de l'attestation…");
@@ -5339,7 +5344,7 @@ function _enregistrerModification(patient, actes, poste){
         }).catch(function(){ hideLoader(); toast("✅ Facture modifiée (attestation non mise à jour)"); finir(); });
       } else { hideLoader(); toast("✅ Facture modifiée"); finir(); }
     })
-    .catch(function(){ hideLoader(); $("formErr").textContent="❌ Erreur réseau — modification non enregistrée."; });
+    .catch(function(){ APP._saving=false; hideLoader(); $("formErr").textContent="❌ Erreur réseau — modification non enregistrée."; });
 }
 
 function supprimerFacture(di, bi){
@@ -5905,6 +5910,10 @@ function _ctbValider(){
     actes=lignes.map(function(l){ var a={}; if(AF.presta) a[AF.presta.name]=l.presta; if(AF.qte) a[AF.qte.name]=String(l.qte); if(AF.pu) a[AF.pu.name]=String(l.pu); if(AF.mt) a[AF.mt.name]=String(Math.round(l.qte*l.pu)); return a; });
   }
   var poste=APP.user.poste;
+  // Anti double-enregistrement : un 2ᵉ clic rapide est ignoré (évite un doublon
+  // que l'ID saisie ne pourrait pas rattraper, car il aurait un autre identifiant).
+  if(APP._saving){ return; }
+  APP._saving=true;
   // Mode édition (correction d'une facture rejetée) : on remplace les lignes existantes
   if(APP._editFacture){ _ctbSaveEdit(patient, actes, poste, AF.all); return; }
   var q=getQueue();
@@ -5918,28 +5927,28 @@ function _ctbValider(){
   showLoader("Enregistrement du dossier…");
   var ctx=_ctbCtx(regime, poste, patient, actes, AF.all, dFR);
   _ctbEnvoyerDossier(ctx).then(function(res){
-    hideLoader();
+    APP._saving=false; hideLoader();
     if(res && res.offline) toast("📁 Enregistré — dossier en attente de réseau");
     else if(res && res.ok && !res.error){ if(res.warn) toast("⚠️ PDF non assemblé — images sauvées sur Drive",5000); else toast("✅ Patient validé — dossier envoyé"); }
     else toast("✅ Patient enregistré — dossier conservé localement (réessai auto)");
     trySync(false); showScreen("screenHome");
     if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} }
-  }).catch(function(){ hideLoader(); toast("✅ Patient enregistré — dossier conservé localement"); trySync(false); showScreen("screenHome"); if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} } });
+  }).catch(function(){ APP._saving=false; hideLoader(); toast("✅ Patient enregistré — dossier conservé localement"); trySync(false); showScreen("screenHome"); if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} } });
 }
 
 // Enregistre une MODIFICATION depuis le formulaire fluide (remplace les lignes + régénère l'attestation)
 function _ctbSaveEdit(patient, actes, poste, acteFields){
   var ef=APP._editFacture||{}, regime=APP.currentRegime;
   var setErr=function(t){ var e=$("ctbErr"); if(e){ e.style.color="#c0392b"; e.textContent=t; } };
-  if(!navigator.onLine){ setErr("📴 Connexion requise pour enregistrer la correction."); return; }
+  if(!navigator.onLine){ APP._saving=false; setErr("📴 Connexion requise pour enregistrer la correction."); return; }
   var entries=actes.map(function(acte){ var data={}; Object.keys(patient).forEach(function(k){ data[k]=patient[k]; }); Object.keys(acte).forEach(function(k){ data[k]=acte[k]; });
     return { id:uid(), regime:regime, poste:poste, data:data }; });
-  function finir(){ APP._editFacture=null; if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome"); }
+  function finir(){ APP._saving=false; APP._editFacture=null; if(ef.regime) ouvrirMoisFacture(ef.regime, ef.moisKey, ef.label); else showScreen("screenHome"); }
   showLoader("Enregistrement de la correction…");
   apiCall({ action:"facture_modifier", email:APP.auth.email, pin:APP.auth.pin,
             regime:regime, moisKey:ef.moisKey||"", ids:JSON.stringify(ef.ids||[]), refs:JSON.stringify(ef.refs||[]), entries:JSON.stringify(entries) })
     .then(function(res){
-      if(res.error){ hideLoader(); setErr("❌ "+res.error); return; }
+      if(res.error){ APP._saving=false; hideLoader(); setErr("❌ "+res.error); return; }
       if(REGIMES_DOSSIER[regime]){
         showLoader("Mise à jour de l'attestation…");
         var d=_docsAttestation(regime, patient, actes, acteFields, patient["Date de prise en charge"]||"");
@@ -5951,7 +5960,7 @@ function _ctbSaveEdit(patient, actes, poste, acteFields){
         .catch(function(){ hideLoader(); toast("✅ Correction enregistrée (attestation non mise à jour)"); finir(); });
       } else { hideLoader(); toast("✅ Correction enregistrée"); finir(); }
     })
-    .catch(function(){ hideLoader(); setErr("❌ Erreur réseau — correction non enregistrée."); });
+    .catch(function(){ APP._saving=false; hideLoader(); setErr("❌ Erreur réseau — correction non enregistrée."); });
 }
 
 function _ctbBrouillon(){
