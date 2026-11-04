@@ -5666,9 +5666,11 @@ function _ctbVerifier(){
   var code=($("ctbCode").value||"").trim().toUpperCase(); APP._ctb.code=code;
   var msg=$("ctbVerifMsg");
   if(!code){ msg.style.color="#c0392b"; msg.textContent="Entrez le code d'immatriculation."; return; }
+  var dateRef=($("ctbDate")&&$("ctbDate").value)||APP._ctb.date||"";   // valider la carte À la date de prise en charge
+  if(!dateRef){ msg.style.color="#c0392b"; msg.textContent="Indiquez d'abord la date de prise en charge."; return; }
   if(!navigator.onLine){ msg.style.color="#b9770e"; msg.textContent="📴 Pas de réseau — saisie manuelle possible."; _ctbManuel(); return; }
   var btn=$("ctbVerif"); btn.disabled=true; msg.style.color="#555"; msg.textContent="🔎 Vérification en cours…";
-  apiCall({ action:"verif_csu", email:APP.auth.email, pin:APP.auth.pin, regime:APP._ctb.regime, code:code })
+  apiCall({ action:"verif_csu", email:APP.auth.email, pin:APP.auth.pin, regime:APP._ctb.regime, code:code, date:dateRef })
     .then(function(res){ btn.disabled=false;
       if(res.error){ msg.style.color="#c0392b"; msg.textContent="❌ "+res.error; return; }
       if(res.indisponible){ msg.style.color="#b9770e"; msg.textContent="⚠️ "+(res.erreur||"Service indisponible."); _ctbManuel(); return; }
