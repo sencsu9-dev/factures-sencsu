@@ -5595,6 +5595,20 @@ function _ctbRenderPatient(){
       '</div>';
     $("ctbsScan").onclick=function(){ APP._cni_recto=""; APP._cni_verso=""; _ouvrirCameraCNI(function(){ _ctbLireCNI(); }); };
     $("ctbsImp").onclick=function(){ _ctbImportCNI(); };
+    // Persister TOUTE saisie/correction manuelle de l'identité dans APP._ctb.benef.
+    // Sans ça, un ré-affichage du formulaire (photo CNI du dossier, ajout de prestation…)
+    // reconstruit les champs depuis APP._ctb.benef et efface la CNI / la date de naissance
+    // saisies à la main → elles seraient perdues à l'enregistrement.
+    (function _ctbLierIdentiteSesame(){
+      var S=function(){ if(!APP._ctb.benef || !APP._ctb.benef._sesame) APP._ctb.benef={_sesame:true}; return APP._ctb.benef; };
+      var lier=function(id,maj){ var el=$(id); if(el){ var h=function(){ maj(S(), el.value); }; el.addEventListener("input",h); el.addEventListener("change",h); } };
+      lier("ctbsPrenom",function(b,v){ b.prenom=(v||"").trim(); });
+      lier("ctbsNom",   function(b,v){ b.nom=(v||"").trim(); });
+      lier("ctbsNaiss", function(b,v){ b.naissance=v||""; b.naissanceFR=_ctbIsoToFR(v||""); });
+      lier("ctbsSexe",  function(b,v){ b.sexe=v||""; });
+      lier("ctbsCni",   function(b,v){ b.cni=(v||"").trim(); });
+      lier("ctbsTel",   function(b,v){ b.telephone=(v||"").trim(); });
+    })();
     return;
   }
   var b=APP._ctb.benef;
@@ -5888,12 +5902,21 @@ function _ctbValider(){
     if(!lignesS.length){ if(err) err.textContent="Ajoutez au moins une prestation complète."; return; }
     var pr=($("ctbsPrenom").value||"").trim(), no=($("ctbsNom").value||"").trim();
     if(!pr||!no){ if(err) err.textContent="Renseignez le prénom et le nom (scannez la CNI ou saisissez à la main)."; return; }
+    // ── CNI OBLIGATOIRE (Plan Sésame) ──
+    // Sans vraie CNI, l'enregistrement est bloqué : on évite que le matricule généré
+    // se retrouve dans le champ CNI et apparaisse ensuite sur la liste nominative.
+    var cniVal=($("ctbsCni").value||"").trim();
+    if(!cniVal){ if(err) err.textContent="⛔ La CNI est obligatoire : scannez la carte ou saisissez le numéro."; return; }
+    if(/^[A-Za-z]\d{4}[A-Za-z]\d{4}$/.test(cniVal)){ if(err) err.textContent="⛔ Cette valeur est un matricule, pas une CNI. Saisissez le vrai numéro de CNI (chiffres)."; return; }
+    var cniDigits=cniVal.replace(/\D/g,"");
+    if(cniDigits.length<10){ if(err) err.textContent="⛔ Numéro de CNI invalide (au moins 10 chiffres attendus)."; return; }
     var naissISO=$("ctbsNaiss").value||"";
+    if(!naissISO){ if(err) err.textContent="⛔ La date de naissance est obligatoire (scannez la CNI ou saisissez-la à la main)."; return; }
     if(naissISO){ var age=calculerAge(naissISO, _ctbToISO(dFR)||date); if(age!=null && age<60){ if(err) err.textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; } }
     patient["Prénom(s)"]=pr; patient["Nom"]=no;
     patient["Date de naissance"]=naissISO? _ctbIsoToFR(naissISO):"";
     patient["Sexe (H/F)"]=$("ctbsSexe").value||"";
-    patient["N° CNI"]=($("ctbsCni").value||"").trim();
+    patient["N° CNI"]=cniVal;
     patient["N° Téléphone"]=($("ctbsTel").value||"").trim();
     patient["Date de prise en charge"]=dFR;
     APP._ctb.benef={ _sesame:true, prenom:pr, nom:no, naissance:naissISO, naissanceFR:patient["Date de naissance"], sexe:patient["Sexe (H/F)"], cni:patient["N° CNI"], telephone:patient["N° Téléphone"], photo:APP._cni_recto||"" };
