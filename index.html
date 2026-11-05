@@ -2700,6 +2700,7 @@ var qrcode = function() {
 // ⚠️ REMPLACER par l'URL de VOTRE Web App Apps Script (celle qui finit par /exec)
 var API_URL = "https://script.google.com/macros/s/AKfycbzeWb2rh4RY-sAgQOkLXf95msAJHBdXq68HjieZgZyKS4xDp0KuD16uHiiX8hyWpbXXWg/exec";
 
+var APP_VERSION = "v105";   // repère de version visible (en-tête) pour confirmer le déploiement
 var APP = { auth:null, user:null, postes:[], regimes:{}, referentiels:{services:[],prestations:[],prix:{},parService:{}}, currentRegime:null };
 var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
 var deferredPrompt = null;
@@ -3111,7 +3112,7 @@ function applyBootstrap(res){
   APP.user=res.user; APP.postes=res.postes||[]; APP.regimes=res.regimes;
   APP.referentiels=res.referentiels||{services:[],prestations:[],prix:{}};
   $("topbar").style.display="flex";
-  $("userInfo").textContent=APP.user.email+" — "+APP.user.role+(APP.user.poste?" ("+APP.user.poste+")":"");
+  $("userInfo").textContent=APP.user.email+" — "+APP.user.role+(APP.user.poste?" ("+APP.user.poste+")":"")+" · PWA "+APP_VERSION;
   buildHomeGrid(); updateSyncUI(); showScreen("screenHome"); retourModeChoice(); trySync(false);
   try{ _flushDossiers(); }catch(e){}
   try{ _chargerNotifs(); }catch(e){}
