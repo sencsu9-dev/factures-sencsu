@@ -5171,6 +5171,10 @@ function _ctbNormSexe(v){ var s=String(v||"").trim().toUpperCase();
   if(s==="M"||s==="H"||s.indexOf("HOMM")===0||s.indexOf("MASC")===0) return "H";
   if(s==="F"||s.indexOf("FEMM")===0||s.indexOf("FEM")===0) return "F";
   return ""; }
+// Déduit le sexe du 1er chiffre de la CNI sénégalaise : 1 = Homme (H), 2 = Femme (F).
+// Fiable (~98 %) ; sert de valeur par défaut, l'agent peut corriger dans le menu.
+function _sexeDepuisCNI(cni){ var c=String(cni||"").replace(/\D/g,""); var d=c.charAt(0);
+  return d==="1" ? "H" : (d==="2" ? "F" : ""); }
 function _ctbPrefillBenef(regime, D, B){
   var data=B.data||{}, benef;
   if(regime==="ENFANTS_5ANS"){
@@ -5184,7 +5188,7 @@ function _ctbPrefillBenef(regime, D, B){
     var _cniEdit=String(data["N° CNI"]||"").trim();
     if(/^[A-Za-z]\d{4}[A-Za-z]\d{4}$/.test(_cniEdit)) _cniEdit="";
     benef={ _sesame:true, prenom:B.prenom||"", nom:B.nom||"", naissance:B.naissance||data["Date de naissance"]||"",
-            naissanceFR:B.naissance||data["Date de naissance"]||"", sexe:_ctbNormSexe(B.sexe||data["Sexe (H/F)"]),
+            naissanceFR:B.naissance||data["Date de naissance"]||"", sexe:_ctbNormSexe(B.sexe||data["Sexe (H/F)"])||_sexeDepuisCNI(_cniEdit),
             cni:_cniEdit, telephone:B.tel||data["N° Téléphone"]||"" };
   } else {
     benef={ prenom:B.prenom||"", nom:B.nom||"", naissanceFR:B.naissance||data["Date de naissance"]||"",
@@ -5665,7 +5669,7 @@ function _ctbLireCNI(){
     .then(function(res){
       if(res.error){ _ctbRenderPatient(); var e=$("ctbsMsg"); if(e){ e.style.color="#c0392b"; e.textContent="❌ "+res.error+" — saisissez à la main."; } return; }
       var d=res.data||{};
-      APP._ctb.benef={ _sesame:true, prenom:d.prenoms||"", nom:d.nom||"", naissance:d.naissance||"", naissanceFR:_ctbIsoToFR(d.naissance), sexe:d.sexe||"", cni:d.cni||"", telephone:"", photo:APP._cni_recto||"" };
+      APP._ctb.benef={ _sesame:true, prenom:d.prenoms||"", nom:d.nom||"", naissance:d.naissance||"", naissanceFR:_ctbIsoToFR(d.naissance), sexe:(_ctbNormSexe(d.sexe)||_sexeDepuisCNI(d.cni)), cni:d.cni||"", telephone:"", photo:APP._cni_recto||"" };
       _ctbRenderPatient();
       var m2=$("ctbsMsg"); if(m2){ var manque=[]; if(!d.cni)manque.push("CNI"); if(!d.prenoms)manque.push("prénom"); if(!d.nom)manque.push("nom"); if(!d.naissance)manque.push("date de naissance");
         if(manque.length){ m2.style.color="#b9770e"; m2.textContent="⚠️ Lecture partielle ("+manque.join(", ")+"). Complétez à la main."; } else { m2.style.color="#1a7a4a"; m2.textContent="✅ Identité remplie — vérifiez."; } }
@@ -5937,7 +5941,7 @@ function _ctbValider(){
     var naissISO=$("ctbsNaiss").value||"";
     if(!naissISO){ if(err) err.textContent="⛔ La date de naissance est obligatoire (scannez la CNI ou saisissez-la à la main)."; return; }
     if(naissISO){ var age=calculerAge(naissISO, _ctbToISO(dFR)||date); if(age!=null && age<60){ if(err) err.textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; } }
-    var sexeVal=_ctbNormSexe($("ctbsSexe").value);
+    var sexeVal=_ctbNormSexe($("ctbsSexe").value)||_sexeDepuisCNI(cniVal);
     if(!sexeVal){ if(err) err.textContent="⛔ Indiquez le sexe (H ou F)."; return; }
     patient["Prénom(s)"]=pr; patient["Nom"]=no;
     patient["Date de naissance"]=naissISO? _ctbIsoToFR(naissISO):"";
