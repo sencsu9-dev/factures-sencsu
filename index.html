@@ -5172,9 +5172,14 @@ function _ctbPrefillBenef(regime, D, B){
             sexe:B.sexe||data["Sexe (M/F)"]||"", extraitNo:B.code||data["N° Matricule / Extrait naissance"]||"",
             registre:data["N° dans le registre"]||"", tel:B.tel||data["N° Téléphone"]||"" };
   } else if(regime==="SESAME"){
+    // La vraie CNI est dans data["N° CNI"] (chiffres). NE PAS utiliser B.code : pour le
+    // Plan Sésame, B.code est le MATRICULE (lettre+4ch+lettre+4ch). On n'affiche jamais un
+    // matricule dans le champ CNI (sinon la validation bloquerait l'enregistrement).
+    var _cniEdit=String(data["N° CNI"]||"").trim();
+    if(/^[A-Za-z]\d{4}[A-Za-z]\d{4}$/.test(_cniEdit)) _cniEdit="";
     benef={ _sesame:true, prenom:B.prenom||"", nom:B.nom||"", naissance:B.naissance||data["Date de naissance"]||"",
             naissanceFR:B.naissance||data["Date de naissance"]||"", sexe:B.sexe||data["Sexe (H/F)"]||"",
-            cni:B.code||data["N° CNI"]||"", telephone:B.tel||data["N° Téléphone"]||"" };
+            cni:_cniEdit, telephone:B.tel||data["N° Téléphone"]||"" };
   } else {
     benef={ prenom:B.prenom||"", nom:B.nom||"", naissanceFR:B.naissance||data["Date de naissance"]||"",
             sexe:B.sexe||data["Sexe (H/F)"]||"", telephone:B.tel||data["N° Téléphone"]||"", code:B.code||"", _manuel:true };
@@ -5648,8 +5653,13 @@ function _ctbLireCNI(){
       var d=res.data||{};
       APP._ctb.benef={ _sesame:true, prenom:d.prenoms||"", nom:d.nom||"", naissance:d.naissance||"", naissanceFR:_ctbIsoToFR(d.naissance), sexe:d.sexe||"", cni:d.cni||"", telephone:"", photo:APP._cni_recto||"" };
       _ctbRenderPatient();
-      var m2=$("ctbsMsg"); if(m2){ var manque=[]; if(!d.prenoms)manque.push("prénom"); if(!d.nom)manque.push("nom"); if(!d.naissance)manque.push("date de naissance");
+      var m2=$("ctbsMsg"); if(m2){ var manque=[]; if(!d.cni)manque.push("CNI"); if(!d.prenoms)manque.push("prénom"); if(!d.nom)manque.push("nom"); if(!d.naissance)manque.push("date de naissance");
         if(manque.length){ m2.style.color="#b9770e"; m2.textContent="⚠️ Lecture partielle ("+manque.join(", ")+"). Complétez à la main."; } else { m2.style.color="#1a7a4a"; m2.textContent="✅ Identité remplie — vérifiez."; } }
+      // Diagnostic : si la CNI n'a pas été lue, afficher le texte brut OCR (repliable),
+      // pour pouvoir l'envoyer et ajuster la lecture automatique du NIN.
+      try{ if(!d.cni){ var host=$("ctbsMsg"); if(host){ var dg=document.createElement("details"); dg.style.cssText="margin-top:6px;font-size:11px";
+        dg.innerHTML='<summary style="cursor:pointer;color:#777">🔧 Texte lu par l\'OCR (diagnostic) — toucher pour voir</summary>'+
+          '<textarea readonly style="width:100%;height:130px;font-size:10px;margin-top:4px">'+_ctbEsc(d.texte||"(aucun texte lu)")+'</textarea>'; host.appendChild(dg); } } }catch(e){}
     })
     .catch(function(){ _ctbRenderPatient(); var e=$("ctbsMsg"); if(e){ e.style.color="#c0392b"; e.textContent="❌ Lecture impossible — saisissez à la main."; } });
 }
