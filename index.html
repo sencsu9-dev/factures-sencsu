@@ -5519,8 +5519,8 @@ function openContributif(regimeKey, prefill){
       '<div id="ctbParts" class="ctb-parts"></div>';
   }
   body.appendChild(sec);
-  // 5) Tickets (facultatif, plusieurs possibles) — bloc compact
-  var tk=_ctbBlocTickets(); tk.style.display=(reveal?"":"none"); body.appendChild(tk);
+  // 5) Tickets (facultatif) — uniquement pour le régime contributif
+  if(regimeKey==="CLASSIQUE"){ var tk=_ctbBlocTickets(); tk.style.display=(reveal?"":"none"); body.appendChild(tk); }
   // 6) Pied (boutons)
   var ft=document.createElement("div"); ft.id="ctbFooter"; ft.style.display=(reveal?"":"none"); body.appendChild(ft);
 
