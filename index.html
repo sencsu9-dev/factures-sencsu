@@ -2700,7 +2700,7 @@ var qrcode = function() {
 // ⚠️ REMPLACER par l'URL de VOTRE Web App Apps Script (celle qui finit par /exec)
 var API_URL = "https://script.google.com/macros/s/AKfycbzeWb2rh4RY-sAgQOkLXf95msAJHBdXq68HjieZgZyKS4xDp0KuD16uHiiX8hyWpbXXWg/exec";
 
-var APP_VERSION = "v110";   // repère de version visible (en-tête) pour confirmer le déploiement
+var APP_VERSION = "v112";   // repère de version visible (en-tête) pour confirmer le déploiement
 var APP = { auth:null, user:null, postes:[], regimes:{}, referentiels:{services:[],prestations:[],prix:{},parService:{}}, currentRegime:null };
 var LS_AUTH="sencsu_auth", LS_QUEUE="sencsu_queue", LS_BOOT="sencsu_boot";
 var deferredPrompt = null;
@@ -5943,6 +5943,12 @@ function _ctbValider(){
     if(naissISO){ var age=calculerAge(naissISO, _ctbToISO(dFR)||date); if(age!=null && age<60){ if(err) err.textContent="⛔ Ce patient a "+age+" ans (Plan Sésame réservé aux 60 ans et plus)."; return; } }
     var sexeVal=_ctbNormSexe($("ctbsSexe").value)||_sexeDepuisCNI(cniVal);
     if(!sexeVal){ if(err) err.textContent="⛔ Indiquez le sexe (H ou F)."; return; }
+    // Scan CNI (recto + verso) OBLIGATOIRE pour une NOUVELLE saisie Sésame : c'est le
+    // justificatif joint au dossier médical. En modification, le dossier existe déjà.
+    if(!APP._editFacture && !(APP._cni_recto && APP._cni_verso)){
+      if(err) err.textContent="⛔ Scannez la CNI (recto + verso) : elle est jointe au dossier médical.";
+      return;
+    }
     patient["Prénom(s)"]=pr; patient["Nom"]=no;
     patient["Date de naissance"]=naissISO? _ctbIsoToFR(naissISO):"";
     patient["Sexe (H/F)"]=sexeVal;
@@ -5984,7 +5990,13 @@ function _ctbValider(){
   _ctbEnvoyerDossier(ctx).then(function(res){
     APP._saving=false; hideLoader();
     if(res && res.offline) toast("📁 Enregistré — dossier en attente de réseau");
-    else if(res && res.ok && !res.error){ if(res.warn) toast("⚠️ PDF non assemblé — images sauvées sur Drive",5000); else toast("✅ Patient validé — dossier envoyé"); }
+    else if(res && res.ok && !res.error){
+      if(res.warn) toast("⚠️ PDF non assemblé — images sauvées sur Drive",5000);
+      else toast("✅ Patient validé — dossier envoyé");
+      // Diagnostic Sésame : confirmer que la CNI (recto+verso) est bien dans le dossier.
+      if(regime==="SESAME"){ var pcs=(res.pieces||[]).join(","); var okCni=/cni_recto/.test(pcs)&&/cni_verso/.test(pcs);
+        toast(okCni?("🪪 CNI jointe au dossier ("+(res.fichiers||0)+" pièces)"):("⚠️ CNI ABSENTE du dossier — pièces reçues : "+(pcs||"aucune")),7000); }
+    }
     else toast("✅ Patient enregistré — dossier conservé localement (réessai auto)");
     trySync(false); showScreen("screenHome");
     if(_etaitBrouillon){ try{ mfCharger(); }catch(e){} }
